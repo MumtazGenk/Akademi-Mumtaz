@@ -1,15 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useDatabase } from '../context/DatabaseContext';
-import { Search, RotateCcw, Calendar, Home, LogOut, User, Sparkles } from 'lucide-react';
+import { Search, Calendar, Sparkles, LogOut, User } from 'lucide-react';
 
 export const Header: React.FC = () => {
-  const { activeTahunAjaran, searchQuery, setSearchQuery, resetDatabase, currentUser, logout, setPageMode } = useDatabase();
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-
-  const handleReset = () => {
-    resetDatabase();
-    setShowResetConfirm(false);
-  };
+  const { activeTahunAjaran, searchQuery, setSearchQuery, currentUser, logout, setPageMode } = useDatabase();
 
   return (
     <header id="main-header" className="border-b border-zinc-200 bg-white sticky top-0 z-30">
@@ -17,11 +11,7 @@ export const Header: React.FC = () => {
       <div className="border-b border-zinc-100 px-4 lg:px-8 py-1.5 text-xs text-zinc-500 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span className="font-mono text-zinc-700 font-medium">db_sia_smkn2_magelang</span>
-          <span className="text-zinc-300">|</span>
-          <span>MariaDB 12.3.3 Engine</span>
-          <span className="text-zinc-300">|</span>
-          <span className="hidden sm:inline text-zinc-600">Kota Magelang, Jawa Tengah</span>
+          <span className="text-zinc-600 font-medium">Kota Magelang, Jawa Tengah</span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -44,36 +34,6 @@ export const Header: React.FC = () => {
           <span className="px-1.5 py-0.5 text-[11px] font-mono font-medium rounded bg-zinc-100 text-zinc-800 border border-zinc-200">
             {activeTahunAjaran.status}
           </span>
-
-          {showResetConfirm ? (
-            <div className="flex items-center gap-1.5 pl-2 border-l border-zinc-200 bg-zinc-100 px-2 py-0.5 rounded">
-              <span className="text-[11px] text-zinc-800 font-medium">Reset ke SQL awal?</span>
-              <button
-                id="btn-confirm-reset"
-                onClick={handleReset}
-                className="px-1.5 py-0.5 text-[10px] font-bold bg-zinc-900 text-white rounded hover:bg-zinc-800 cursor-pointer"
-              >
-                Ya
-              </button>
-              <button
-                id="btn-cancel-reset"
-                onClick={() => setShowResetConfirm(false)}
-                className="px-1.5 py-0.5 text-[10px] text-zinc-600 hover:text-zinc-900 cursor-pointer"
-              >
-                Batal
-              </button>
-            </div>
-          ) : (
-            <button
-              id="btn-reset-db"
-              onClick={() => setShowResetConfirm(true)}
-              title="Reset data ke SQL Dump awal"
-              className="flex items-center gap-1 text-zinc-500 hover:text-zinc-900 transition-colors cursor-pointer pl-2 border-l border-zinc-200"
-            >
-              <RotateCcw className="w-3 h-3" />
-              <span className="hidden md:inline">Reset Data</span>
-            </button>
-          )}
         </div>
       </div>
 
