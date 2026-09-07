@@ -8,3 +8,4 @@ coverage/
 .env*
 !.env.example
 .sql
+package-lock.json
