@@ -118,23 +118,10 @@ erDiagram
     }
 ```
 
-### Import Skema ke MariaDB / MySQL Lokal
-
-Untuk menjalankan skema database pada instance MariaDB atau MySQL lokal:
-
-```bash
-# Menggunakan MariaDB
-mariadb -u root -p < db_sia_smkn2_magelang.sql
-
-# Atau menggunakan klien MySQL
-mysql -u root -p < db_sia_smkn2_magelang.sql
-```
-
-Perintah di atas akan membuat basis data `db_sia_smkn2_magelang` beserta seluruh tabel relasional dan data awal (seed).
 
 ## Menjalankan Proyek
 
-### Prasyarat
+### Requirement
 - Node.js versi 18 atau lebih baru
 - npm versi 9 atau lebih baru
 
@@ -143,7 +130,7 @@ Perintah di atas akan membuat basis data `db_sia_smkn2_magelang` beserta seluruh
 npm install
 ```
 
-### 2. Konfigurasi Lingkungan (Opsional)
+### 2. Konfigurasi Environment (Opsional)
 Aplikasi dapat berjalan langsung tanpa konfigurasi database eksternal (menggunakan state lokal berbasis seed SQL). Jika ingin menghubungkan ke Supabase, salin berkas contoh:
 
 ```bash
@@ -163,7 +150,7 @@ npm run dev
 
 Aplikasi dapat diakses melalui peramban web di `http://localhost:3000`.
 
-### 4. Perintah Skrip yang Tersedia
+### 4. Command
 - `npm run dev` : Menjalankan server pengembangan Vite di `localhost:3000`.
 - `npm run build` : Melakukan kompilasi produksi ke direktori `dist/`.
 - `npm run preview` : Menjalankan server lokal untuk menguji build produksi.
@@ -207,7 +194,7 @@ sistem-akademik/
             `-- DatabaseInspectorView.tsx # Peninjau struktur DDL basis data
 ```
 
-## Tumpukan Teknologi
+## Stack 
 
 - **Frontend Core**: React 19, TypeScript 5.8
 - **Tooling & Bundler**: Vite 6
