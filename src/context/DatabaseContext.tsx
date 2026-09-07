@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState, useMemo, useEffect, useCallback } from 'react';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import {
   Guru,
   Jadwal,
@@ -53,23 +54,33 @@ interface DatabaseContextType {
   enrichedJadwal: JadwalEnriched[];
   enrichedNilai: NilaiEnriched[];
   // Actions
-  updateNilai: (id_nilai: number, updates: Partial<Pick<Nilai, 'nilai_tugas' | 'nilai_uts' | 'nilai_uas'>>) => void;
-  addNilai: (newNilai: Omit<Nilai, 'id_nilai' | 'nilai_akhir'>) => void;
-  addSiswa: (newSiswa: Siswa) => void;
+  updateNilai: (id_nilai: number, updates: Partial<Pick<Nilai, 'nilai_tugas' | 'nilai_uts' | 'nilai_uas'>>) => Promise<void> | void;
+  addNilai: (newNilai: Omit<Nilai, 'id_nilai' | 'nilai_akhir'>) => Promise<void> | void;
+  addSiswa: (newSiswa: Siswa) => Promise<void> | void;
   resetDatabase: () => void;
+  // Supabase Status
+  isSupabaseConfigured: boolean;
+  isSupabaseConnected: boolean;
+  isLoadingSupabase: boolean;
+  supabaseError: string | null;
+  refreshFromSupabase: () => Promise<void>;
 }
 
 const DatabaseContext = createContext<DatabaseContextType | undefined>(undefined);
 
 export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [guruList] = useState<Guru[]>(INITIAL_GURU);
-  const [jadwalList] = useState<Jadwal[]>(INITIAL_JADWAL);
-  const [jurusanList] = useState<Jurusan[]>(INITIAL_JURUSAN);
-  const [kelasList] = useState<Kelas[]>(INITIAL_KELAS);
-  const [mapelList] = useState<MataPelajaran[]>(INITIAL_MATA_PELAJARAN);
+  const [guruList, setGuruList] = useState<Guru[]>(INITIAL_GURU);
+  const [jadwalList, setJadwalList] = useState<Jadwal[]>(INITIAL_JADWAL);
+  const [jurusanList, setJurusanList] = useState<Jurusan[]>(INITIAL_JURUSAN);
+  const [kelasList, setKelasList] = useState<Kelas[]>(INITIAL_KELAS);
+  const [mapelList, setMapelList] = useState<MataPelajaran[]>(INITIAL_MATA_PELAJARAN);
   const [nilaiList, setNilaiList] = useState<Nilai[]>(INITIAL_NILAI);
   const [siswaList, setSiswaList] = useState<Siswa[]>(INITIAL_SISWA);
-  const [tahunAjaranList] = useState<TahunAjaran[]>(INITIAL_TAHUN_AJARAN);
+  const [tahunAjaranList, setTahunAjaranList] = useState<TahunAjaran[]>(INITIAL_TAHUN_AJARAN);
+
+  const [isLoadingSupabase, setIsLoadingSupabase] = useState<boolean>(false);
+  const [isSupabaseConnected, setIsSupabaseConnected] = useState<boolean>(false);
+  const [supabaseError, setSupabaseError] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<TabKey>('ringkasan');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -145,18 +156,75 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
   }, [jadwalList, guruList, mapelList, kelasList, jurusanList]);
 
-  const updateNilai = (
+  const fetchFromSupabase = useCallback(async () => {
+    if (!isSupabaseConfigured) return;
+    try {
+      setIsLoadingSupabase(true);
+      setSupabaseError(null);
+      const [
+        resJurusan,
+        resGuru,
+        resMapel,
+        resTahun,
+        resKelas,
+        resSiswa,
+        resJadwal,
+        resNilai,
+      ] = await Promise.all([
+        supabase.from('jurusan').select('*').order('id_jurusan'),
+        supabase.from('guru').select('*').order('id_guru'),
+        supabase.from('mata_pelajaran').select('*').order('id_mapel'),
+        supabase.from('tahun_ajaran').select('*').order('id_tahun_ajaran'),
+        supabase.from('kelas').select('*').order('id_kelas'),
+        supabase.from('siswa').select('*').order('nis'),
+        supabase.from('jadwal').select('*').order('id_jadwal'),
+        supabase.from('nilai').select('*').order('id_nilai'),
+      ]);
+
+      if (resJurusan.error || resGuru.error || resSiswa.error) {
+        const err = resJurusan.error || resGuru.error || resSiswa.error;
+        console.warn('Supabase fetch error:', err);
+        setSupabaseError(err?.message || 'Gagal memuat data dari Supabase');
+        return;
+      }
+
+      if (resJurusan.data && resJurusan.data.length > 0) setJurusanList(resJurusan.data as Jurusan[]);
+      if (resGuru.data && resGuru.data.length > 0) setGuruList(resGuru.data as Guru[]);
+      if (resMapel.data && resMapel.data.length > 0) setMapelList(resMapel.data as MataPelajaran[]);
+      if (resTahun.data && resTahun.data.length > 0) setTahunAjaranList(resTahun.data as TahunAjaran[]);
+      if (resKelas.data && resKelas.data.length > 0) setKelasList(resKelas.data as Kelas[]);
+      if (resSiswa.data && resSiswa.data.length > 0) setSiswaList(resSiswa.data as Siswa[]);
+      if (resJadwal.data && resJadwal.data.length > 0) setJadwalList(resJadwal.data as Jadwal[]);
+      if (resNilai.data && resNilai.data.length > 0) setNilaiList(resNilai.data as Nilai[]);
+
+      setIsSupabaseConnected(true);
+    } catch (err: any) {
+      console.warn('Supabase connection exception:', err);
+      setSupabaseError(err?.message || 'Koneksi ke Supabase gagal');
+    } finally {
+      setIsLoadingSupabase(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isSupabaseConfigured) {
+      fetchFromSupabase();
+    }
+  }, [fetchFromSupabase]);
+
+  const updateNilai = async (
     id_nilai: number,
     updates: Partial<Pick<Nilai, 'nilai_tugas' | 'nilai_uts' | 'nilai_uas'>>
   ) => {
+    let calculatedAkhir = 0;
     setNilaiList((prev) =>
       prev.map((item) => {
         if (item.id_nilai === id_nilai) {
           const t = updates.nilai_tugas ?? item.nilai_tugas;
           const u = updates.nilai_uts ?? item.nilai_uts;
           const a = updates.nilai_uas ?? item.nilai_uas;
-          // Standard weighting: 30% tugas, 30% UTS, 40% UAS (as evidenced in dump: 85*0.3 + 88*0.3 + 90*0.4 = 25.5 + 26.4 + 36 = 87.90)
-          const calculatedAkhir = Number(((t * 0.3) + (u * 0.3) + (a * 0.4)).toFixed(2));
+          // Standard weighting: 30% tugas, 30% UTS, 40% UAS
+          calculatedAkhir = Number(((t * 0.3) + (u * 0.3) + (a * 0.4)).toFixed(2));
           return {
             ...item,
             ...updates,
@@ -166,9 +234,20 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return item;
       })
     );
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase
+          .from('nilai')
+          .update({ ...updates, nilai_akhir: calculatedAkhir })
+          .eq('id_nilai', id_nilai);
+      } catch (err) {
+        console.error('Error updating nilai on Supabase:', err);
+      }
+    }
   };
 
-  const addNilai = (newNilai: Omit<Nilai, 'id_nilai' | 'nilai_akhir'>) => {
+  const addNilai = async (newNilai: Omit<Nilai, 'id_nilai' | 'nilai_akhir'>) => {
     const nextId = Math.max(...nilaiList.map((n) => n.id_nilai), 0) + 1;
     const t = newNilai.nilai_tugas;
     const u = newNilai.nilai_uts;
@@ -181,10 +260,31 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       nilai_akhir: calculatedAkhir,
     };
     setNilaiList((prev) => [record, ...prev]);
+
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('nilai')
+          .insert([{ ...newNilai, nilai_akhir: calculatedAkhir }])
+          .select();
+        if (!error && data && data[0]) {
+          setNilaiList((prev) => prev.map((n) => (n.id_nilai === nextId ? (data[0] as Nilai) : n)));
+        }
+      } catch (err) {
+        console.error('Error inserting nilai to Supabase:', err);
+      }
+    }
   };
 
-  const addSiswa = (newSiswa: Siswa) => {
+  const addSiswa = async (newSiswa: Siswa) => {
     setSiswaList((prev) => [...prev, newSiswa]);
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('siswa').insert([newSiswa]);
+      } catch (err) {
+        console.error('Error inserting siswa to Supabase:', err);
+      }
+    }
   };
 
   const resetDatabase = () => {
@@ -316,6 +416,11 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addNilai,
         addSiswa,
         resetDatabase,
+        isSupabaseConfigured,
+        isSupabaseConnected,
+        isLoadingSupabase,
+        supabaseError,
+        refreshFromSupabase: fetchFromSupabase,
       }}
     >
       {children}

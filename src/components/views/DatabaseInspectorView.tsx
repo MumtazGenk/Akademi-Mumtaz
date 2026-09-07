@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useDatabase } from '../../context/DatabaseContext';
 import { SQL_SCHEMA_OVERVIEW, RAW_DATABASE_NAME, DATABASE_VERSION, DUMP_DATE } from '../../data/databaseData';
+import supabaseSqlScript from '../../../supabase_sia_smkn2_magelang.sql?raw';
 import {
   Database,
   Table as TableIcon,
@@ -12,6 +13,11 @@ import {
   Download,
   Info,
   Layers,
+  Cloud,
+  RefreshCw,
+  ExternalLink,
+  CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react';
 
 export const DatabaseInspectorView: React.FC = () => {
@@ -24,8 +30,14 @@ export const DatabaseInspectorView: React.FC = () => {
     nilaiList,
     siswaList,
     tahunAjaranList,
+    isSupabaseConfigured,
+    isSupabaseConnected,
+    isLoadingSupabase,
+    supabaseError,
+    refreshFromSupabase,
   } = useDatabase();
 
+  const [copiedSupabaseSQL, setCopiedSupabaseSQL] = useState<boolean>(false);
   const [selectedTable, setSelectedTable] = useState<string>('siswa');
   const [copiedSQL, setCopiedSQL] = useState<boolean>(false);
   const [tableSearch, setTableSearch] = useState<string>('');
@@ -83,8 +95,113 @@ export const DatabaseInspectorView: React.FC = () => {
     setTimeout(() => setCopiedSQL(false), 2000);
   };
 
+  const handleCopySupabaseSQL = () => {
+    navigator.clipboard.writeText(supabaseSqlScript);
+    setCopiedSupabaseSQL(true);
+    setTimeout(() => setCopiedSupabaseSQL(false), 2000);
+  };
+
   return (
     <div className="space-y-6">
+      {/* Supabase Cloud Connection Banner */}
+      <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-white border border-emerald-200 rounded-lg p-5 shadow-xs">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-emerald-100">
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 bg-emerald-500 text-white rounded-lg shadow-xs">
+              <Cloud className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-base font-bold text-zinc-900">
+                  Integrasi Supabase Cloud
+                </h3>
+                {isSupabaseConnected ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    Terhubung (Live Sync)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-200">
+                    <AlertTriangle className="w-3 h-3 text-amber-600" />
+                    {isSupabaseConfigured ? 'Menghubungkan...' : 'Mode Lokal (Belum Terkoneksi)'}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-zinc-600 mt-1 max-w-2xl">
+                Proyek Supabase: <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-emerald-200 text-emerald-900 font-semibold">mumtaz-skul</code> (<code>https://odsujbhqocwypyjfwwvx.supabase.co</code>). Supabase menggunakan mesin <strong>PostgreSQL</strong>, sehingga skrip MariaDB awal telah dikonversi menjadi skrip siap-jalan.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleCopySupabaseSQL}
+              className="px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-md flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+            >
+              {copiedSupabaseSQL ? <Check className="w-3.5 h-3.5 text-white" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedSupabaseSQL ? 'Skrip SQL Tersalin!' : 'Salin SQL Supabase'}</span>
+            </button>
+            <a
+              href="https://supabase.com/dashboard/project/odsujbhqocwypyjfwwvx/sql/new"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 text-xs font-semibold bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-300 rounded-md flex items-center gap-1.5 transition-colors shadow-xs"
+            >
+              <span>Buka SQL Editor</span>
+              <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
+            </a>
+            {isSupabaseConfigured && (
+              <button
+                onClick={() => refreshFromSupabase()}
+                disabled={isLoadingSupabase}
+                className="p-1.5 text-xs text-zinc-600 hover:text-zinc-900 bg-white border border-zinc-200 rounded-md cursor-pointer disabled:opacity-50"
+                title="Muat ulang data dari Supabase"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingSupabase ? 'animate-spin text-emerald-600' : ''}`} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {supabaseError && (
+          <div className="mt-3 text-xs bg-red-50 text-red-700 p-2.5 rounded border border-red-200 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+            <span>Koneksi Supabase: {supabaseError}</span>
+          </div>
+        )}
+
+        {/* Quick Steps Guide */}
+        <div className="mt-3 pt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-zinc-600">
+          <div className="bg-white/80 rounded p-2.5 border border-emerald-100">
+            <div className="font-semibold text-zinc-900 mb-1 flex items-center gap-1.5">
+              <span className="w-4 h-4 rounded-full bg-emerald-600 text-white inline-flex items-center justify-center text-[10px]">1</span>
+              Jalankan Skrip di Supabase
+            </div>
+            <p className="text-[11px] text-zinc-500">
+              Buka menu <strong>SQL Editor</strong> di dashboard Supabase, paste skrip SQL (klik tombol hijau di atas), lalu klik <strong>Run</strong>.
+            </p>
+          </div>
+          <div className="bg-white/80 rounded p-2.5 border border-emerald-100">
+            <div className="font-semibold text-zinc-900 mb-1 flex items-center gap-1.5">
+              <span className="w-4 h-4 rounded-full bg-emerald-600 text-white inline-flex items-center justify-center text-[10px]">2</span>
+              Ambil API Key (Anon Key)
+            </div>
+            <p className="text-[11px] text-zinc-500">
+              Klik menu <strong>Project Settings &gt; API</strong> atau tombol <strong>Connect</strong> di dashboard Supabase untuk menyalin <code>anon public</code> key.
+            </p>
+          </div>
+          <div className="bg-white/80 rounded p-2.5 border border-emerald-100">
+            <div className="font-semibold text-zinc-900 mb-1 flex items-center gap-1.5">
+              <span className="w-4 h-4 rounded-full bg-emerald-600 text-white inline-flex items-center justify-center text-[10px]">3</span>
+              Isi ke File .env
+            </div>
+            <p className="text-[11px] text-zinc-500">
+              Buka file <code className="font-mono bg-zinc-100 px-1 py-0.5 rounded">.env</code> di project ini dan tempelkan key ke <code className="font-mono">VITE_SUPABASE_ANON_KEY</code>.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* DB Overview Header */}
       <div className="bg-white border border-zinc-200 rounded-lg p-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-zinc-100">
