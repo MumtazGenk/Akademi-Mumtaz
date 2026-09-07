@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useDatabase } from '../../context/DatabaseContext';
 import { Guru } from '../../types';
+import { ConfirmDeleteModal } from '../modals/ConfirmDeleteModal';
 import {
   GraduationCap,
   Mail,
@@ -12,11 +13,42 @@ import {
   X,
   Layers,
   Award,
+  UserPlus,
+  Edit2,
+  Trash2,
 } from 'lucide-react';
 
 export const GuruView: React.FC = () => {
-  const { guruList, mapelList, enrichedJadwal, enrichedNilai, searchQuery } = useDatabase();
+  const {
+    guruList,
+    mapelList,
+    enrichedJadwal,
+    enrichedNilai,
+    searchQuery,
+    addGuru,
+    updateGuru,
+    deleteGuru,
+    currentUser,
+  } = useDatabase();
+
+  const isAdmin = currentUser?.role === 'admin';
+
   const [selectedGuruDetail, setSelectedGuruDetail] = useState<Guru | null>(null);
+  const [showAddModal, setShowAddModal] = useState<boolean>(false);
+  const [editingGuru, setEditingGuru] = useState<Guru | null>(null);
+  const [deletingGuru, setDeletingGuru] = useState<Guru | null>(null);
+
+  // New Guru form state
+  const [newNip, setNewNip] = useState('');
+  const [newNama, setNewNama] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newNoHp, setNewNoHp] = useState('08');
+
+  // Edit Guru form state
+  const [editNip, setEditNip] = useState('');
+  const [editNama, setEditNama] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editNoHp, setEditNoHp] = useState('');
 
   const filteredGuru = guruList.filter((g) => {
     if (searchQuery.trim()) {
@@ -29,32 +61,88 @@ export const GuruView: React.FC = () => {
     return true;
   });
 
+  const handleCreateGuru = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newNip.trim() || !newNama.trim()) return;
+
+    addGuru({
+      nip: newNip.trim(),
+      nama_guru: newNama.trim(),
+      email: newEmail.trim() || null,
+      no_hp: newNoHp.trim() || '081234567890',
+    });
+
+    setShowAddModal(false);
+    setNewNip('');
+    setNewNama('');
+    setNewEmail('');
+    setNewNoHp('08');
+  };
+
+  const startEditGuru = (guru: Guru) => {
+    setEditingGuru(guru);
+    setEditNip(guru.nip);
+    setEditNama(guru.nama_guru);
+    setEditEmail(guru.email || '');
+    setEditNoHp(guru.no_hp);
+  };
+
+  const handleUpdateGuru = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingGuru || !editNama.trim() || !editNip.trim()) return;
+
+    updateGuru(editingGuru.id_guru, {
+      nip: editNip.trim(),
+      nama_guru: editNama.trim(),
+      email: editEmail.trim() || null,
+      no_hp: editNoHp.trim(),
+    });
+
+    setEditingGuru(null);
+  };
+
+  const handleDeleteGuru = () => {
+    if (!deletingGuru) return;
+    deleteGuru(deletingGuru.id_guru);
+    setDeletingGuru(null);
+  };
+
   return (
     <div className="space-y-6">
       {/* Top Header */}
       <div className="bg-white border border-zinc-200 rounded-lg p-5">
-        <div className="flex items-center justify-between pb-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
           <div>
             <h2 className="text-lg font-bold text-zinc-900 flex items-center gap-2">
               <GraduationCap className="w-5 h-5 text-zinc-700" />
               Direktori Tenaga Pendidik (Guru)
             </h2>
             <p className="text-xs text-zinc-500 mt-0.5">
-              Data 5 pengajar fungsional SMKN 2 Magelang beserta NIP, muatan ajar, dan jadwal tatap muka
+              Data pengajar fungsional SMKN 2 Magelang beserta NIP, muatan ajar, dan jadwal tatap muka
             </p>
           </div>
+
+          {isAdmin && (
+            <div className="flex items-center gap-2">
+              <button
+                id="btn-add-guru"
+                onClick={() => setShowAddModal(true)}
+                className="px-3.5 py-1.5 text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 text-white rounded-md flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Tambah Guru Baru</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Teachers Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredGuru.map((guru) => {
-          // Schedules for this teacher
           const teacherSchedules = enrichedJadwal.filter((j) => j.id_guru === guru.id_guru);
-          // Subjects taught
           const subjectIds = Array.from(new Set(teacherSchedules.map((j) => j.id_mapel)));
           const taughtSubjects = mapelList.filter((m) => subjectIds.includes(m.id_mapel));
-          // Total grades assessed by this teacher
           const teacherGrades = enrichedNilai.filter((n) => n.id_guru === guru.id_guru);
 
           return (
@@ -70,9 +158,29 @@ export const GuruView: React.FC = () => {
                       NIP: {guru.nip}
                     </div>
                   </div>
-                  <span className="w-8 h-8 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-700 shrink-0">
-                    <GraduationCap className="w-4 h-4" />
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {isAdmin && (
+                      <>
+                        <button
+                          onClick={() => startEditGuru(guru)}
+                          className="p-1.5 text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100 rounded-md transition-colors cursor-pointer border border-zinc-200"
+                          title="Edit Guru"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setDeletingGuru(guru)}
+                          className="p-1.5 text-rose-400 hover:text-rose-700 hover:bg-rose-50 rounded-md transition-colors cursor-pointer border border-rose-200"
+                          title="Hapus Guru"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
+                    <span className="w-8 h-8 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-700 shrink-0">
+                      <GraduationCap className="w-4 h-4" />
+                    </span>
+                  </div>
                 </div>
 
                 <div className="mt-4 pt-3 border-t border-zinc-100 space-y-2 text-xs">
@@ -93,14 +201,18 @@ export const GuruView: React.FC = () => {
                     Mata Pelajaran Diampu ({taughtSubjects.length}):
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    {taughtSubjects.map((sub) => (
-                      <span
-                        key={sub.id_mapel}
-                        className="text-[10px] px-2 py-0.5 rounded bg-zinc-100 text-zinc-800 border border-zinc-200 font-medium"
-                      >
-                        {sub.nama_mapel}
-                      </span>
-                    ))}
+                    {taughtSubjects.length > 0 ? (
+                      taughtSubjects.map((sub) => (
+                        <span
+                          key={sub.id_mapel}
+                          className="text-[10px] px-2 py-0.5 rounded bg-zinc-100 text-zinc-800 border border-zinc-200 font-medium"
+                        >
+                          {sub.nama_mapel}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-[11px] text-zinc-400 italic">Belum ada alokasi mapel</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -121,10 +233,185 @@ export const GuruView: React.FC = () => {
         })}
       </div>
 
+      {/* Add Guru Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white border border-zinc-300 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-150">
+            <div className="bg-zinc-900 text-white px-5 py-3.5 flex items-center justify-between">
+              <h3 className="font-bold text-sm">Tambah Tenaga Pendidik (Guru)</h3>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="text-zinc-400 hover:text-white p-1 rounded transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateGuru} className="p-5 space-y-3.5 text-xs">
+              <div>
+                <label className="block text-zinc-600 font-medium mb-1">NIP (Nomor Induk Pegawai)</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: 198001012005011001"
+                  value={newNip}
+                  onChange={(e) => setNewNip(e.target.value)}
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-3 py-1.5 font-mono text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-600 font-medium mb-1">Nama Lengkap & Gelar</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Dra. Sri Wahyuni, M.Pd"
+                  value={newNama}
+                  onChange={(e) => setNewNama(e.target.value)}
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-3 py-1.5 text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-600 font-medium mb-1">Alamat Email Resmi</label>
+                <input
+                  type="email"
+                  placeholder="nama@smkn2mgl.sch.id"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-3 py-1.5 font-mono text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-600 font-medium mb-1">Nomor WhatsApp / HP</label>
+                <input
+                  type="text"
+                  placeholder="081234567890"
+                  value={newNoHp}
+                  onChange={(e) => setNewNoHp(e.target.value)}
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-3 py-1.5 font-mono text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
+                  required
+                />
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2 border-t border-zinc-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-3.5 py-1.5 text-zinc-600 hover:text-zinc-900 rounded-md border border-zinc-200 hover:bg-zinc-50 cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 font-semibold bg-zinc-900 text-white rounded-md hover:bg-zinc-800 cursor-pointer shadow-xs"
+                >
+                  Simpan Guru
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Guru Modal */}
+      {editingGuru && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white border border-zinc-300 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-150">
+            <div className="bg-zinc-900 text-white px-5 py-3.5 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-sm">Edit Data Guru</h3>
+                <p className="text-[11px] text-zinc-400 font-mono">ID: #{editingGuru.id_guru}</p>
+              </div>
+              <button
+                onClick={() => setEditingGuru(null)}
+                className="text-zinc-400 hover:text-white p-1 rounded transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateGuru} className="p-5 space-y-3.5 text-xs">
+              <div>
+                <label className="block text-zinc-600 font-medium mb-1">NIP (Nomor Induk Pegawai)</label>
+                <input
+                  type="text"
+                  value={editNip}
+                  onChange={(e) => setEditNip(e.target.value)}
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-3 py-1.5 font-mono text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-600 font-medium mb-1">Nama Lengkap & Gelar</label>
+                <input
+                  type="text"
+                  value={editNama}
+                  onChange={(e) => setEditNama(e.target.value)}
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-3 py-1.5 text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-600 font-medium mb-1">Alamat Email Resmi</label>
+                <input
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-3 py-1.5 font-mono text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-600 font-medium mb-1">Nomor WhatsApp / HP</label>
+                <input
+                  type="text"
+                  value={editNoHp}
+                  onChange={(e) => setEditNoHp(e.target.value)}
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-3 py-1.5 font-mono text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
+                  required
+                />
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2 border-t border-zinc-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingGuru(null)}
+                  className="px-3.5 py-1.5 text-zinc-600 hover:text-zinc-900 rounded-md border border-zinc-200 hover:bg-zinc-50 cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 font-semibold bg-zinc-900 text-white rounded-md hover:bg-zinc-800 cursor-pointer shadow-xs"
+                >
+                  Simpan Perubahan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingGuru && (
+        <ConfirmDeleteModal
+          isOpen={!!deletingGuru}
+          title="Hapus Data Guru"
+          itemType="guru"
+          itemName={`${deletingGuru.nama_guru} (NIP: ${deletingGuru.nip})`}
+          onConfirm={handleDeleteGuru}
+          onClose={() => setDeletingGuru(null)}
+        />
+      )}
+
       {/* Teacher Schedule Detail Modal */}
       {selectedGuruDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-xs">
-          <div className="bg-white border border-zinc-300 rounded-lg shadow-xl w-full max-w-2xl overflow-hidden text-zinc-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white border border-zinc-300 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden text-zinc-900 animate-in zoom-in-95 duration-150">
             <div className="bg-zinc-900 text-white px-5 py-4 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-base">{selectedGuruDetail.nama_guru}</h3>
@@ -134,7 +421,7 @@ export const GuruView: React.FC = () => {
               </div>
               <button
                 onClick={() => setSelectedGuruDetail(null)}
-                className="text-zinc-400 hover:text-white"
+                className="text-zinc-400 hover:text-white p-1 rounded transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
