@@ -1,0 +1,6 @@
+{
+  "name": "SIA SMK Negeri 2 Magelang",
+  "description": "Sistem Informasi Akademik SMK Negeri 2 Magelang berbasis basis data terpadu (Siswa, Guru, Jadwal, Jurusan, dan Penilaian).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
