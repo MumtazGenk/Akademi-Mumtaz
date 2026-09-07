@@ -1,85 +1,48 @@
 # Sistem Informasi Akademik (SIA) SMK Negeri 2 Magelang
-### *Akademi Mumtaz — Portal Akademik & Manajemen Rapor Terpadu*
 
-[![React](https://img.shields.io/badge/React-19.0-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Vite](https://img.shields.io/badge/Vite-6.2-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.1-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![Database Schema](https://img.shields.io/badge/Database-MariaDB_12.3-003545?style=flat-square&logo=mariadb&logoColor=white)](https://mariadb.org/)
+Aplikasi web Sistem Informasi Akademik (SIA) untuk pengelolaan data operasional sekolah: biodata siswa, data guru, penjadwalan rombongan belajar (rombel), rekapitulasi buku nilai, dan pencetakan rapor semester.
 
----
+Aplikasi ini menggunakan skema basis data relasional 8 entitas (`db_sia_smkn2_magelang.sql`). Data dapat berjalan langsung di peramban menggunakan data awal (in-memory seed) atau tersambung ke backend Supabase.
 
-## 📌 Tentang Proyek
+## Fitur Utama
 
-**SIA SMK Negeri 2 Magelang (Akademi Mumtaz)** adalah platform Sistem Informasi Akademik terpadu berbasis web yang dirancang untuk mengelola data operasional pendidikan, mulai dari biodata peserta didik, data tenaga pendidik, alokasi jadwal pelajaran per rombongan belajar (rombel), hingga evaluasi nilai dan cetak rapor siswa.
+- **Akses Multi-Peran**: Pembagian hak akses untuk Administrator, Guru, dan Siswa, dilengkapi fitur demo login satu klik.
+- **Dasbor Ringkasan**: Statistik total siswa, guru, rombel, distribusi jurusan, jadwal hari berjalan, dan persentase ketuntasan KKM.
+- **Manajemen Siswa**: Direktori data siswa per tingkat (X, XI, XII) dan konsentrasi keahlian, pencarian nama/NIS, serta form penambahan siswa baru.
+- **Buku Nilai & Evaluasi**: Input dan pembaruan nilai (Tugas, UTS, UAS), status ketuntasan otomatis, dan ekspor data nilai ke format CSV.
+- **Cetak Rapor Siswa**: Format cetak rapor semester per siswa, mencakup rekap nilai, predikat, catatan capaian kompetensi, dan lembar tanda tangan.
+- **Jadwal Pelajaran & Ruang**: Tampilan matriks mingguan dan tabel daftar per hari, kelas, guru pengampu, serta alokasi ruang teori dan laboratorium.
+- **Direktori Guru & Kurikulum**: Data NIP, kontak, pembagian mata pelajaran umum dan kejuruan di 5 konsentrasi keahlian (PPLG, AKL, MPLB, PM, DKV).
+- **Inspektur Basis Data**: Peninjau skema relasional, struktur DDL tabel MariaDB, data tabel mentah, dan opsi reset data awal.
 
-Aplikasi ini mengacu pada skema basis data relasional MariaDB terstruktur (`db_sia_smkn2_magelang`) yang mencakup 8 entitas inti yang saling terintegrasi dengan antarmuka modern yang responsif, serta simulasi otentikasi multi-peran (Admin, Guru, dan Siswa).
+## Aturan Penilaian
 
----
+Perhitungan nilai akhir menggunakan bobot:
 
-## ✨ Fitur-Fitur Utama
+$$\text{Nilai Akhir} = (30\% \times \text{Tugas}) + (30\% \times \text{UTS}) + (40\% \times \text{UAS})$$
 
-### 1. 🌐 Landing Page & Akses Multi-Peran
-- Beranda informatif dengan ringkasan statistik sekolah dan profil kejuruan.
-- **Autentikasi Multi-Role**:
-  - **Administrator**: Akses penuh ke seluruh data sekolah, rombel, buku nilai, dan inspeksi basis data.
-  - **Guru**: Monitoring beban mengajar, jadwal mengampu di ruang kelas/lab, dan input nilai siswa.
-  - **Siswa**: Tinjau histori nilai pribadi, status ketuntasan KKM, jadwal kelas, dan pratinjau e-rapor.
-- Tombol **Demo 1-Klik** untuk pengujian cepat tiap peran tanpa perlu mengetik kredensial manual.
+- **KKM Sekolah**: 75.00
+- **Skala Predikat**:
+  - `A` : 90.00 - 100.00
+  - `B` : 80.00 - 89.99
+  - `C` : 75.00 - 79.99 (Tuntas KKM)
+  - `D` : < 75.00 (Belum Tuntas / Perlu Remedial)
 
-### 2. 📊 Dasbor Ringkasan (Overview)
-- Metrik KPI utama: Total Siswa, Guru, Rombel, Mata Pelajaran, Jadwal Aktif, dan Rata-rata Nilai Sekolah.
-- Rasio kelulusan KKM (Kriteria Ketuntasan Minimal 75.0) dan demografi gender siswa.
-- Distribusi siswa per konsentrasi keahlian/jurusan.
-- Pratinjau jadwal ruang harian serta daftar siswa berprestasi.
+## Akun Demo
 
-### 3. 👥 Manajemen Data Siswa (`SiswaView`)
-- Pencarian cerdas dan filter multi-kriteria (Tingkat X/XI/XII, Rombel, Jurusan, Gender, dan Status Ketuntasan).
-- Form penambahan data siswa baru secara dinamis.
-- Profil siswa lengkap disertai NIS, tanggal lahir, alamat, serta rata-rata akademik.
+Untuk pengujian cepat tanpa mengisi form login, gunakan tombol peran demo di halaman login atau masukkan kredensial berikut:
 
-### 4. 📄 Rapor Siswa Siap Cetak (`StudentRaporModal`)
-- Rekapitulasi nilai mata pelajaran per semester lengkap dengan bobot dan predikat (A, B, C, D).
-- Penilaian deskriptif status ketercapaian kompetensi terhadap KKM (75.0).
-- Kolom tanda tangan resmi Kepala Sekolah dan Wali Kelas.
-- Dukungan **Cetak Rapor Langsung** (`Print-to-PDF / Paper`) yang ramah cetak.
+| Peran | Pengenal (NIS / NIP / Username) | Kata Sandi | Cakupan Akses |
+|---|---|---|---|
+| Administrator | `admin` | `admin123` | Akses penuh: kelola semua data, jadwal, nilai, kurikulum, dan inspeksi DDL database |
+| Guru | `198001012005011001` | `guru123` | Akun Budi Santoso, M.Kom. Akses jadwal mengajar dan input/edit nilai siswa |
+| Siswa | `2401` | `123456` | Akun Aditya Pratama (XI PPLG 1). Akses profil pribadi, jadwal kelas, riwayat nilai, dan cetak rapor |
 
-### 5. 📝 Buku Nilai & Evaluasi (`NilaiView`)
-- Formula perhitungan nilai akhir otomatis berstandar:
-  $$\text{Nilai Akhir} = (30\% \times \text{Tugas}) + (30\% \times \text{UTS}) + (40\% \times \text{UAS})$$
-- Pengubahan nilai secara langsung (*inline modal*) dengan kalkulasi instan.
-- Filter berdasarkan mata pelajaran, guru pengampu, rombel kelas, dan status KKM.
-- Fitur **Export Data Nilai ke format CSV** untuk arsip dan administrasi.
+*Catatan: Pada form login pengujian, sistem memvalidasi kecocokan pengenal. Kata sandi demo di atas dapat disesuaikan.*
 
-### 6. 📅 Jadwal Pelajaran & Ruang Lab (`JadwalView`)
-- Tampilan dua mode: **Tampilan Matriks Harian** (Senin s.d. Jumat) dan **Tampilan Daftar (List View)**.
-- Alokasi ruang pembelajaran (Lab Komputer 1-3, Lab Akuntansi, Lab Perkantoran, dan Ruang Teori).
-- Filter jadwal berdasarkan hari, kelas, maupun guru pengajar.
-- Opsi cetak jadwal pelajaran resmi sekolah.
+## Skema Basis Data
 
-### 7. 👨‍🏫 Direktori Tenaga Pendidik (`GuruView`)
-- Informasi data guru terdaftar, NIP, email dinas, dan nomor kontak.
-- Pemetaan muatan ajar yang diampu serta rekapitulasi penilaian kelas.
-
-### 8. 📚 Kurikulum, Jurusan & Rombel (`KurikulumView`)
-- Profil 5 Konsentrasi Keahlian:
-  - **PPLG** (Pengembangan Perangkat Lunak dan Gim)
-  - **AKL** (Akuntansi dan Keuangan Lembaga)
-  - **MPLB** (Manajemen Perkantoran dan Layanan Bisnis)
-  - **PM** (Pemasaran)
-  - **DKV** (Desain Komunikasi Visual)
-- Katalog mata pelajaran kelompok Kejuruan dan Umum beserta alokasi pengajar.
-
-### 9. 🗄️ Database Inspector (`DatabaseInspectorView`)
-- Visualisasi struktur tabel dan skema DDL (*Data Definition Language*) MariaDB 12.3.
-- Inspeksi isi data relasional tiap tabel secara real-time.
-- Fitur salin sintaks SQL CREATE TABLE dan tombol reset basis data ke *seed* awal.
-
----
-
-## 🗂️ Arsitektur Skema Basis Data
-
-Sistem didasarkan pada basis data `db_sia_smkn2_magelang` dengan 8 tabel relasional:
+Sistem menggunakan 8 tabel relasional yang didefinisikan dalam berkas `db_sia_smkn2_magelang.sql`:
 
 ```mermaid
 erDiagram
@@ -155,110 +118,99 @@ erDiagram
     }
 ```
 
----
+### Import Skema ke MariaDB / MySQL Lokal
 
-## 🔑 Kredensial Uji Coba (Demo Accounts)
+Untuk menjalankan skema database pada instance MariaDB atau MySQL lokal:
 
-Anda dapat masuk menggunakan form autentikasi di halaman utama atau langsung menggunakan tombol demo peran:
-
-| Peran | Pengenal (Identifier / Login) | Kredensial / Sandi | Deskripsi |
-|---|---|---|---|
-| **Administrator** | `admin` | *(bebas / admin123)* | Akses penuh pengelolaan SIA |
-| **Guru** | `198001012005011001` | *(bebas / guru123)* | Akun Budi Santoso, M.Kom. (Guru Basis Data) |
-| **Siswa** | `2401` | *(tanggal lahir / 123456)* | Akun Aditya Pratama (Kelas XI PPLG 1) |
-
----
-
-## 🚀 Panduan Menjalankan Proyek
-
-### Prasyarat
-- [Node.js](https://nodejs.org/) versi 18 atau yang lebih baru
-- [npm](https://www.npmjs.com/) versi 9 atau yang lebih baru
-
-### 1. Clone Repositori
 ```bash
-git clone https://github.com/MumtazGenk/Akademi-Mumtaz.git
-cd Akademi-Mumtaz
+# Menggunakan MariaDB
+mariadb -u root -p < db_sia_smkn2_magelang.sql
+
+# Atau menggunakan klien MySQL
+mysql -u root -p < db_sia_smkn2_magelang.sql
 ```
 
-### 2. Instal Dependensi
+Perintah di atas akan membuat basis data `db_sia_smkn2_magelang` beserta seluruh tabel relasional dan data awal (seed).
+
+## Menjalankan Proyek
+
+### Prasyarat
+- Node.js versi 18 atau lebih baru
+- npm versi 9 atau lebih baru
+
+### 1. Pasang Dependensi
 ```bash
 npm install
 ```
 
-### 3. Konfigurasi Lingkungan (Opsional)
-Salin berkas `.env.example` menjadi `.env.local` jika ingin mengonfigurasi variabel lingkungan:
+### 2. Konfigurasi Lingkungan (Opsional)
+Aplikasi dapat berjalan langsung tanpa konfigurasi database eksternal (menggunakan state lokal berbasis seed SQL). Jika ingin menghubungkan ke Supabase, salin berkas contoh:
+
 ```bash
 cp .env.example .env.local
 ```
 
-### 4. Jalankan Server Pengembangan
+Isi konfigurasi Supabase pada berkas `.env.local`:
+```env
+VITE_SUPABASE_URL="https://<project-ref>.supabase.co"
+VITE_SUPABASE_ANON_KEY="<your-supabase-anon-key>"
+```
+
+### 3. Jalankan Server Pengembangan
 ```bash
 npm run dev
 ```
-Aplikasi akan aktif dan dapat diakses melalui peramban web di:
-```text
-http://localhost:3000
-```
 
-### 5. Perintah Lain yang Tersedia
-- `npm run build` — Melakukan kompilasi aset produksi melalui Vite.
-- `npm run preview` — Meninjau hasil kompilasi produksi secara lokal.
-- `npm run lint` — Melakukan pemeriksaan tipe statis TypeScript (`tsc --noEmit`).
-- `npm run clean` — Membersihkan folder artefak build `dist`.
+Aplikasi dapat diakses melalui peramban web di `http://localhost:3000`.
 
----
+### 4. Perintah Skrip yang Tersedia
+- `npm run dev` : Menjalankan server pengembangan Vite di `localhost:3000`.
+- `npm run build` : Melakukan kompilasi produksi ke direktori `dist/`.
+- `npm run preview` : Menjalankan server lokal untuk menguji build produksi.
+- `npm run lint` : Menjalankan pemeriksaan tipe TypeScript statis (`tsc --noEmit`).
+- `npm run clean` : Menghapus folder artefak build `dist/`.
 
-## 📁 Struktur Direktori
+## Struktur Direktori
 
 ```text
 sistem-akademik/
-├── index.html                   # Entri berkas HTML utama & konfigurasi font
-├── metadata.json                # Metadata profil aplikasi
-├── package.json                 # Konfigurasi dependensi dan skrip proyek
-├── tsconfig.json                # Konfigurasi TypeScript compiler
-├── vite.config.ts               # Konfigurasi Vite, Tailwind & path aliases
-├── public/                      # Aset publik statis
-└── src/
-    ├── App.tsx                  # Komponen induk aplikasi & perutean tampilan
-    ├── main.tsx                 # Titik masuk rendering React DOM
-    ├── types.ts                 # Definisi antarmuka & tipe data TypeScript
-    ├── index.css                # Gaya dasar Tailwind CSS
-    ├── context/
-    │   └── DatabaseContext.tsx  # State management terpusat, autentikasi, & relasi
-    ├── data/
-    │   └── databaseData.ts      # Data inisial (seed) MariaDB & definisi skema DDL
-    └── components/
-        ├── Header.tsx           # Navigasi atas, status database, & profil user
-        ├── NavigationTabs.tsx   # Bilah tab navigasi modul aplikasi
-        ├── landing/
-        │   └── LandingPage.tsx  # Halaman beranda & portal masuk multi-peran
-        ├── modals/
-        │   └── StudentRaporModal.tsx # Pratinjau & format cetak rapor peserta didik
-        └── views/
-            ├── OverviewView.tsx          # Dasbor ringkasan analitik & metrik
-            ├── SiswaView.tsx             # Manajemen & direktori siswa
-            ├── JadwalView.tsx            # Penjadwalan & penggunaan ruang belajar
-            ├── NilaiView.tsx             # Pengelolaan buku nilai & ekspor CSV
-            ├── GuruView.tsx              # Direktori tenaga pendidik
-            ├── KurikulumView.tsx         # Struktur kurikulum, jurusan & mapel
-            └── DatabaseInspectorView.tsx # Pemeriksa struktur DDL basis data
+|-- db_sia_smkn2_magelang.sql    # Skema DDL dan data seed MariaDB
+|-- index.html                   # Berkas HTML utama
+|-- package.json                 # Konfigurasi dependensi dan skrip
+|-- tsconfig.json                # Konfigurasi compiler TypeScript
+|-- vite.config.ts               # Konfigurasi bundler Vite
+|-- public/                      # Aset statis
+`-- src/
+    |-- App.tsx                  # Komponen utama dan perutean modul
+    |-- main.tsx                 # Titik masuk rendering React DOM
+    |-- types.ts                 # Definisi tipe data dan antarmuka TypeScript
+    |-- context/
+    |   `-- DatabaseContext.tsx  # Pengelolaan state, relasi, dan integrasi Supabase
+    |-- data/
+    |   `-- databaseData.ts      # Data seed awal dan skema DDL
+    |-- lib/
+    |   `-- supabase.ts          # Klien koneksi Supabase
+    |-- components/
+        |-- Header.tsx           # Navigasi atas dan indikator status database
+        |-- NavigationTabs.tsx   # Bilah pergantian modul halaman
+        |-- landing/
+        |   `-- LandingPage.tsx  # Halaman beranda dan autentikasi peran
+        |-- modals/
+        |   `-- StudentRaporModal.tsx # Pratinjau dan format cetak rapor
+        `-- views/
+            |-- OverviewView.tsx          # Ringkasan analitik dan metrik sekolah
+            |-- SiswaView.tsx             # Manajemen dan pencarian data siswa
+            |-- JadwalView.tsx            # Penjadwalan kelas dan pemakaian ruang
+            |-- NilaiView.tsx             # Rekap buku nilai dan ekspor CSV
+            |-- GuruView.tsx              # Direktori data tenaga pendidik
+            |-- KurikulumView.tsx         # Struktur jurusan dan mata pelajaran
+            `-- DatabaseInspectorView.tsx # Peninjau struktur DDL basis data
 ```
 
----
+## Tumpukan Teknologi
 
-## 🛠️ Tumpukan Teknologi
-
-- **Frontend Core**: [React 19](https://react.dev/) & [TypeScript](https://www.typescriptlang.org/)
-- **Bundler & Tooling**: [Vite 6](https://vitejs.dev/)
-- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
-- **Animasi**: [Motion](https://motion.dev/)
-- **Ikon**: [Lucide React](https://lucide.dev/)
-- **Desain Tipografi**: Plus Jakarta Sans & JetBrains Mono
-
----
-
-## 📝 Lisensi & Hak Cipta
-
-Proyek ini dikembangkan untuk kebutuhan akademik dan portofolio **SMK Negeri 2 Magelang** di bawah repositori **Akademi-Mumtaz**.
-Dikelola oleh tim pengembang [MumtazGenk](https://github.com/MumtazGenk).
+- **Frontend Core**: React 19, TypeScript 5.8
+- **Tooling & Bundler**: Vite 6
+- **Styling**: Tailwind CSS v4
+- **Database & Storage**: MariaDB 12.3 (`db_sia_smkn2_magelang.sql`) dan Supabase Client
+- **Animasi & Ikon**: Motion, Lucide React
