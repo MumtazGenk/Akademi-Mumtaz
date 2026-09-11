@@ -16,6 +16,9 @@ import {
   AuthUser,
   UserRole,
   PageViewMode,
+  Presensi,
+  Remedial,
+  StatusPresensi,
 } from '../types';
 import {
   INITIAL_GURU,
@@ -35,9 +38,12 @@ interface DatabaseContextType {
   kelasList: Kelas[];
   mapelList: MataPelajaran[];
   nilaiList: Nilai[];
+  presensiList: Presensi[];
+  remedialList: Remedial[];
   siswaList: Siswa[];
   tahunAjaranList: TahunAjaran[];
   activeTahunAjaran: TahunAjaran;
+  setActiveTahunAjaran: (id_tahun_ajaran: number) => Promise<void> | void;
   activeTab: TabKey;
   setActiveTab: (tab: TabKey) => void;
   searchQuery: string;
@@ -103,6 +109,8 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [kelasList, setKelasList] = useState<Kelas[]>(INITIAL_KELAS);
   const [mapelList, setMapelList] = useState<MataPelajaran[]>(INITIAL_MATA_PELAJARAN);
   const [nilaiList, setNilaiList] = useState<Nilai[]>(INITIAL_NILAI);
+    const [presensiList, setPresensiList] = useState<Presensi[]>([]);
+    const [remedialList, setRemedialList] = useState<Remedial[]>([]);
   const [siswaList, setSiswaList] = useState<Siswa[]>(INITIAL_SISWA);
   const [tahunAjaranList, setTahunAjaranList] = useState<TahunAjaran[]>(INITIAL_TAHUN_AJARAN);
 
@@ -117,9 +125,22 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [pageMode, setPageMode] = useState<PageViewMode>('landing');
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
 
+  const today = new Date().toISOString().slice(0, 10);
+
   const activeTahunAjaran = useMemo(() => {
     return tahunAjaranList.find((t) => t.status === 'Aktif') || tahunAjaranList[1];
   }, [tahunAjaranList]);
+
+  const setActiveTahunAjaran = async (id_tahun_ajaran: number) => {
+    setTahunAjaranList((prev) => prev.map((item) => ({
+      ...item,
+      status: item.id_tahun_ajaran === id_tahun_ajaran ? 'Aktif' : 'Tidak Aktif',
+    })));
+    if (isSupabaseConfigured) {
+      await supabase.from('tahun_ajaran').update({ status: 'Tidak Aktif' }).neq('id_tahun_ajaran', id_tahun_ajaran);
+      await supabase.from('tahun_ajaran').update({ status: 'Aktif' }).eq('id_tahun_ajaran', id_tahun_ajaran);
+    }
+  };
 
   // Relational mappings
   const enrichedNilai = useMemo<NilaiEnriched[]>(() => {
@@ -129,11 +150,18 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const tahunMap = new Map<number, TahunAjaran>(tahunAjaranList.map((t) => [t.id_tahun_ajaran, t]));
     const kelasMap = new Map<number, Kelas>(kelasList.map((k) => [k.id_kelas, k]));
 
-    return nilaiList.map((n) => {
+    return nilaiList.filter((n) => n.id_tahun_ajaran === activeTahunAjaran.id_tahun_ajaran).map((n) => {
       const siswa = siswaMap.get(n.nis);
       const kelas = siswa ? kelasMap.get(siswa.id_kelas) : undefined;
+      const remedialScores = remedialList
+        .filter((remedial) => remedial.id_nilai === n.id_nilai)
+        .map((remedial) => remedial.nilai_remedial);
+      const nilaiEfektif = remedialScores.length > 0
+        ? Math.max(n.nilai_akhir, ...remedialScores)
+        : n.nilai_akhir;
       return {
         ...n,
+        nilai_akhir: nilaiEfektif,
         siswa,
         mapel: mapelMap.get(n.id_mapel),
         guru: guruMap.get(n.id_guru),
@@ -141,7 +169,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         kelas,
       };
     });
-  }, [nilaiList, siswaList, mapelList, guruList, tahunAjaranList, kelasList]);
+  }, [nilaiList, remedialList, siswaList, mapelList, guruList, tahunAjaranList, kelasList, activeTahunAjaran]);
 
   const enrichedSiswa = useMemo<SiswaEnriched[]>(() => {
     const kelasMap = new Map<number, Kelas>(kelasList.map((k) => [k.id_kelas, k]));
@@ -198,6 +226,8 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         resSiswa,
         resJadwal,
         resNilai,
+        resPresensi,
+        resRemedial,
       ] = await Promise.all([
         supabase.from('jurusan').select('*').order('id_jurusan'),
         supabase.from('guru').select('*').order('id_guru'),
@@ -207,6 +237,8 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         supabase.from('siswa').select('*').order('nis'),
         supabase.from('jadwal').select('*').order('id_jadwal'),
         supabase.from('nilai').select('*').order('id_nilai'),
+        supabase.from('presensi').select('*').order('tanggal', { ascending: false }),
+        supabase.from('remedial').select('*').order('tanggal', { ascending: false }),
       ]);
 
       if (resJurusan.error || resGuru.error || resSiswa.error) {
@@ -224,6 +256,8 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (resSiswa.data && resSiswa.data.length > 0) setSiswaList(resSiswa.data as Siswa[]);
       if (resJadwal.data && resJadwal.data.length > 0) setJadwalList(resJadwal.data as Jadwal[]);
       if (resNilai.data && resNilai.data.length > 0) setNilaiList(resNilai.data as Nilai[]);
+      if (resPresensi.data && resPresensi.data.length > 0) setPresensiList(resPresensi.data as Presensi[]);
+      if (resRemedial.data && resRemedial.data.length > 0) setRemedialList(resRemedial.data as Remedial[]);
 
       setIsSupabaseConnected(true);
     } catch (err: any) {
@@ -546,7 +580,11 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     id_nilai: number,
     updates: Partial<Nilai>
   ) => {
-    let calculatedAkhir: number | undefined = undefined;
+    const values = [updates.nilai_tugas, updates.nilai_uts, updates.nilai_uas].filter((value): value is number => value !== undefined);
+    if (values.some((value) => !Number.isFinite(value) || value < 0 || value > 100)) {
+      throw new Error('Nilai harus berada di antara 0 dan 100.');
+    }
+    let calculatedAkhir = 0;
     setNilaiList((prev) =>
       prev.map((item) => {
         if (item.id_nilai === id_nilai) {
@@ -577,6 +615,14 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const addNilai = async (newNilai: Omit<Nilai, 'id_nilai' | 'nilai_akhir'>) => {
+    const values = [newNilai.nilai_tugas, newNilai.nilai_uts, newNilai.nilai_uas];
+    if (values.some((value) => !Number.isFinite(value) || value < 0 || value > 100)) {
+      throw new Error('Nilai harus berada di antara 0 dan 100.');
+    }
+    if (!siswaList.some((siswa) => siswa.nis === newNilai.nis)) throw new Error('Siswa tidak ditemukan.');
+    if (nilaiList.some((nilai) => nilai.nis === newNilai.nis && nilai.id_mapel === newNilai.id_mapel && nilai.id_tahun_ajaran === newNilai.id_tahun_ajaran)) {
+      throw new Error('Nilai untuk siswa, mata pelajaran, dan periode ini sudah ada.');
+    }
     const nextId = Math.max(...nilaiList.map((n) => n.id_nilai), 0) + 1;
     const t = newNilai.nilai_tugas;
     const u = newNilai.nilai_uts;
@@ -605,8 +651,11 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  const deleteNilai = async (id_nilai: number) => {
-    setNilaiList((prev) => prev.filter((item) => item.id_nilai !== id_nilai));
+  const addSiswa = async (newSiswa: Siswa) => {
+    if (!newSiswa.nis.trim() || !newSiswa.nama_siswa.trim()) throw new Error('NIS dan nama siswa wajib diisi.');
+    if (siswaList.some((siswa) => siswa.nis === newSiswa.nis)) throw new Error('NIS sudah digunakan.');
+    if (!kelasList.some((kelas) => kelas.id_kelas === newSiswa.id_kelas)) throw new Error('Kelas tidak ditemukan.');
+    setSiswaList((prev) => [...prev, newSiswa]);
     if (isSupabaseConfigured) {
       try {
         await supabase.from('nilai').delete().eq('id_nilai', id_nilai);
@@ -614,6 +663,92 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         console.error('Error deleting nilai on Supabase:', err);
       }
     }
+  };
+
+  const updateSiswa = async (nis: string, updates: Partial<Siswa>) => {
+    if (updates.id_kelas && !kelasList.some((kelas) => kelas.id_kelas === updates.id_kelas)) throw new Error('Kelas tidak ditemukan.');
+    setSiswaList((prev) => prev.map((item) => item.nis === nis ? { ...item, ...updates } : item));
+    if (isSupabaseConfigured) await supabase.from('siswa').update(updates).eq('nis', nis);
+  };
+
+  const deleteSiswa = async (nis: string) => {
+    if (nilaiList.some((nilai) => nilai.nis === nis) || presensiList.some((presensi) => presensi.nis === nis)) throw new Error('Siswa masih memiliki nilai atau presensi. Hapus data terkait terlebih dahulu.');
+    setSiswaList((prev) => prev.filter((item) => item.nis !== nis));
+    if (isSupabaseConfigured) await supabase.from('siswa').delete().eq('nis', nis);
+  };
+
+  const nextId = (items: object[], key: string) => Math.max(...items.map((item) => Number((item as Record<string, unknown>)[key]) || 0), 0) + 1;
+
+  const addGuru = async (newGuru: Omit<Guru, 'id_guru'>) => {
+    if (guruList.some((guru) => guru.nip === newGuru.nip || (newGuru.email && guru.email === newGuru.email))) throw new Error('NIP atau email guru sudah digunakan.');
+    const record = { ...newGuru, id_guru: nextId(guruList, 'id_guru') };
+    setGuruList((prev) => [...prev, record]);
+    if (isSupabaseConfigured) await supabase.from('guru').insert([newGuru]);
+  };
+  const updateGuru = async (id_guru: number, updates: Partial<Guru>) => {
+    setGuruList((prev) => prev.map((item) => item.id_guru === id_guru ? { ...item, ...updates } : item));
+    if (isSupabaseConfigured) await supabase.from('guru').update(updates).eq('id_guru', id_guru);
+  };
+  const deleteGuru = async (id_guru: number) => {
+    if (jadwalList.some((item) => item.id_guru === id_guru) || nilaiList.some((item) => item.id_guru === id_guru)) throw new Error('Guru masih terhubung ke jadwal atau nilai.');
+    setGuruList((prev) => prev.filter((item) => item.id_guru !== id_guru));
+    if (isSupabaseConfigured) await supabase.from('guru').delete().eq('id_guru', id_guru);
+  };
+
+  const validateSchedule = (candidate: Jadwal, ignoredId?: number) => {
+    if (candidate.jam_mulai >= candidate.jam_selesai) throw new Error('Jam selesai harus lebih besar dari jam mulai.');
+    if (!guruList.some((item) => item.id_guru === candidate.id_guru) || !mapelList.some((item) => item.id_mapel === candidate.id_mapel) || !kelasList.some((item) => item.id_kelas === candidate.id_kelas)) throw new Error('Guru, mata pelajaran, atau kelas tidak valid.');
+    const overlaps = (a: Jadwal, b: Jadwal) => a.hari === b.hari && a.jam_mulai < b.jam_selesai && a.jam_selesai > b.jam_mulai;
+    if (jadwalList.some((item) => item.id_jadwal !== ignoredId && overlaps(candidate, item) && (item.id_kelas === candidate.id_kelas || item.id_guru === candidate.id_guru || item.ruang === candidate.ruang))) throw new Error('Jadwal bentrok untuk kelas, guru, atau ruang yang dipilih.');
+  };
+  const addJadwal = async (newJadwal: Omit<Jadwal, 'id_jadwal'>) => {
+    const record = { ...newJadwal, id_jadwal: nextId(jadwalList, 'id_jadwal') };
+    validateSchedule(record);
+    setJadwalList((prev) => [...prev, record]);
+    if (isSupabaseConfigured) await supabase.from('jadwal').insert([newJadwal]);
+  };
+  const updateJadwal = async (id_jadwal: number, updates: Partial<Jadwal>) => {
+    const current = jadwalList.find((item) => item.id_jadwal === id_jadwal);
+    if (!current) throw new Error('Jadwal tidak ditemukan.');
+    const record = { ...current, ...updates };
+    validateSchedule(record, id_jadwal);
+    setJadwalList((prev) => prev.map((item) => item.id_jadwal === id_jadwal ? record : item));
+    if (isSupabaseConfigured) await supabase.from('jadwal').update(updates).eq('id_jadwal', id_jadwal);
+  };
+  const deleteJadwal = async (id_jadwal: number) => {
+    setJadwalList((prev) => prev.filter((item) => item.id_jadwal !== id_jadwal));
+    if (isSupabaseConfigured) await supabase.from('jadwal').delete().eq('id_jadwal', id_jadwal);
+  };
+
+  const addJurusan = async (newJurusan: Omit<Jurusan, 'id_jurusan'>) => { if (jurusanList.some((item) => item.kode_jurusan === newJurusan.kode_jurusan)) throw new Error('Kode jurusan sudah digunakan.'); const record = { ...newJurusan, id_jurusan: nextId(jurusanList, 'id_jurusan') }; setJurusanList((prev) => [...prev, record]); };
+  const updateJurusan = async (id_jurusan: number, updates: Partial<Jurusan>) => { setJurusanList((prev) => prev.map((item) => item.id_jurusan === id_jurusan ? { ...item, ...updates } : item)); };
+  const deleteJurusan = async (id_jurusan: number) => { if (kelasList.some((item) => item.id_jurusan === id_jurusan)) throw new Error('Jurusan masih memiliki kelas.'); setJurusanList((prev) => prev.filter((item) => item.id_jurusan !== id_jurusan)); };
+  const addKelas = async (newKelas: Omit<Kelas, 'id_kelas'>) => { if (!jurusanList.some((item) => item.id_jurusan === newKelas.id_jurusan)) throw new Error('Jurusan tidak ditemukan.'); const record = { ...newKelas, id_kelas: nextId(kelasList, 'id_kelas') }; setKelasList((prev) => [...prev, record]); };
+  const updateKelas = async (id_kelas: number, updates: Partial<Kelas>) => { setKelasList((prev) => prev.map((item) => item.id_kelas === id_kelas ? { ...item, ...updates } : item)); };
+  const deleteKelas = async (id_kelas: number) => { if (siswaList.some((item) => item.id_kelas === id_kelas) || jadwalList.some((item) => item.id_kelas === id_kelas)) throw new Error('Kelas masih memiliki siswa atau jadwal.'); setKelasList((prev) => prev.filter((item) => item.id_kelas !== id_kelas)); };
+  const addMapel = async (newMapel: Omit<MataPelajaran, 'id_mapel'>) => { if (mapelList.some((item) => item.kode_mapel === newMapel.kode_mapel)) throw new Error('Kode mata pelajaran sudah digunakan.'); const record = { ...newMapel, id_mapel: nextId(mapelList, 'id_mapel') }; setMapelList((prev) => [...prev, record]); };
+  const updateMapel = async (id_mapel: number, updates: Partial<MataPelajaran>) => { setMapelList((prev) => prev.map((item) => item.id_mapel === id_mapel ? { ...item, ...updates } : item)); };
+  const deleteMapel = async (id_mapel: number) => { if (nilaiList.some((item) => item.id_mapel === id_mapel) || jadwalList.some((item) => item.id_mapel === id_mapel)) throw new Error('Mata pelajaran masih terhubung ke jadwal atau nilai.'); setMapelList((prev) => prev.filter((item) => item.id_mapel !== id_mapel)); };
+  const addTahunAjaran = async (newTahun: Omit<TahunAjaran, 'id_tahun_ajaran'>) => { const record = { ...newTahun, id_tahun_ajaran: nextId(tahunAjaranList, 'id_tahun_ajaran') }; setTahunAjaranList((prev) => [...prev, record]); };
+  const updateTahunAjaran = async (id_tahun_ajaran: number, updates: Partial<TahunAjaran>) => { setTahunAjaranList((prev) => prev.map((item) => item.id_tahun_ajaran === id_tahun_ajaran ? { ...item, ...updates } : item)); };
+  const deleteTahunAjaran = async (id_tahun_ajaran: number) => { if (tahunAjaranList.length <= 1 || nilaiList.some((item) => item.id_tahun_ajaran === id_tahun_ajaran)) throw new Error('Periode masih digunakan atau merupakan satu-satunya periode.'); setTahunAjaranList((prev) => prev.filter((item) => item.id_tahun_ajaran !== id_tahun_ajaran)); };
+  const deleteNilai = async (id_nilai: number) => { setNilaiList((prev) => prev.filter((item) => item.id_nilai !== id_nilai)); if (isSupabaseConfigured) await supabase.from('nilai').delete().eq('id_nilai', id_nilai); };
+
+  const addPresensi = async (newPresensi: Omit<Presensi, 'id_presensi'>) => {
+    if (!siswaList.some((item) => item.nis === newPresensi.nis)) throw new Error('Siswa tidak ditemukan.');
+    if (presensiList.some((item) => item.nis === newPresensi.nis && item.tanggal === newPresensi.tanggal)) throw new Error('Presensi siswa pada tanggal tersebut sudah ada.');
+    const record = { ...newPresensi, id_presensi: nextId(presensiList, 'id_presensi') };
+    setPresensiList((prev) => [record, ...prev]);
+    if (isSupabaseConfigured) await supabase.from('presensi').insert([newPresensi]);
+  };
+  const updatePresensi = async (id_presensi: number, updates: Partial<Presensi>) => { setPresensiList((prev) => prev.map((item) => item.id_presensi === id_presensi ? { ...item, ...updates } : item)); if (isSupabaseConfigured) await supabase.from('presensi').update(updates).eq('id_presensi', id_presensi); };
+  const deletePresensi = async (id_presensi: number) => { setPresensiList((prev) => prev.filter((item) => item.id_presensi !== id_presensi)); if (isSupabaseConfigured) await supabase.from('presensi').delete().eq('id_presensi', id_presensi); };
+  const addRemedial = async (newRemedial: Omit<Remedial, 'id_remedial'>) => {
+    if (newRemedial.nilai_remedial < 0 || newRemedial.nilai_remedial > 100) throw new Error('Nilai remedial harus berada di antara 0 dan 100.');
+    if (!nilaiList.some((nilai) => nilai.id_nilai === newRemedial.id_nilai)) throw new Error('Data nilai awal tidak ditemukan.');
+    const record = { ...newRemedial, id_remedial: nextId(remedialList, 'id_remedial') };
+    setRemedialList((prev) => [record, ...prev]);
+    if (isSupabaseConfigured) await supabase.from('remedial').insert([newRemedial]);
   };
 
   const resetDatabase = () => {
@@ -724,9 +859,12 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         kelasList,
         mapelList,
         nilaiList,
+        presensiList,
+        remedialList,
         siswaList,
         tahunAjaranList,
         activeTahunAjaran,
+        setActiveTahunAjaran,
         activeTab,
         setActiveTab,
         searchQuery,
@@ -746,6 +884,9 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addGuru,
         updateGuru,
         deleteGuru,
+        addJadwal,
+        updateJadwal,
+        deleteJadwal,
         addJurusan,
         updateJurusan,
         deleteJurusan,
@@ -758,12 +899,11 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addTahunAjaran,
         updateTahunAjaran,
         deleteTahunAjaran,
-        addJadwal,
-        updateJadwal,
-        deleteJadwal,
-        addNilai,
-        updateNilai,
         deleteNilai,
+        addPresensi,
+        updatePresensi,
+        deletePresensi,
+        addRemedial,
         resetDatabase,
         isSupabaseConfigured,
         isSupabaseConnected,

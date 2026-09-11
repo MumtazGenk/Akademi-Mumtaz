@@ -75,6 +75,29 @@ export interface Nilai {
   nilai_akhir: number;
 }
 
+export type StatusPresensi = 'Hadir' | 'Sakit' | 'Izin' | 'Alpa';
+
+export interface Presensi {
+  id_presensi: number;
+  nis: string;
+  id_kelas: number;
+  tanggal: string;
+  status: StatusPresensi;
+  keterangan: string | null;
+}
+
+export interface Remedial {
+  id_remedial: number;
+  id_nilai: number;
+  nis: string;
+  id_mapel: number;
+  id_tahun_ajaran: number;
+  nilai_awal: number;
+  nilai_remedial: number;
+  tanggal: string;
+  catatan: string | null;
+}
+
 // Relational Enriched Types
 export interface SiswaEnriched extends Siswa {
   kelas?: Kelas;
@@ -98,7 +121,7 @@ export interface NilaiEnriched extends Nilai {
   kelas?: Kelas;
 }
 
-export type TabKey = 'ringkasan' | 'siswa' | 'jadwal' | 'nilai' | 'guru' | 'kurikulum' | 'database';
+export type TabKey = 'ringkasan' | 'siswa' | 'jadwal' | 'nilai' | 'guru' | 'kurikulum' | 'presensi' | 'remedial' | 'administrasi' | 'database';
 
 export type UserRole = 'admin' | 'guru' | 'siswa';
 
