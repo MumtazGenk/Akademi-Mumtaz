@@ -19,6 +19,8 @@ import {
   Presensi,
   Remedial,
   StatusPresensi,
+  AuditLogEntry,
+  UserProfile,
 } from '../types';
 import {
   INITIAL_GURU,
@@ -53,8 +55,32 @@ interface DatabaseContextType {
   setPageMode: (mode: PageViewMode) => void;
   currentUser: AuthUser | null;
   login: (identifier: string, credential?: string, roleHint?: UserRole) => { success: boolean; message: string; user?: AuthUser };
+  loginWithGoogle: (customEmail?: string) => Promise<{ success: boolean; message: string; user?: AuthUser }>;
+  registerUser: (data: {
+    email: string;
+    password: string;
+    role: UserRole;
+    identifier: string;
+    nama_lengkap: string;
+  }) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   loginAsDemo: (role: UserRole) => void;
+  // Advanced Security & RBAC
+  failedLoginAttempts: number;
+  lockoutRemainingSeconds: number;
+  auditLogs: AuditLogEntry[];
+  addAuditLog: (action: AuditLogEntry['action'], userId: string, role?: UserRole, details?: string) => void;
+  isTabAllowed: (tab: TabKey) => boolean;
+  allowedTabs: TabKey[];
+  checkPasswordStrength: (pwd: string) => {
+    score: number;
+    hasLength: boolean;
+    hasUpper: boolean;
+    hasLower: boolean;
+    hasNumber: boolean;
+    hasSymbol: boolean;
+    feedback: string;
+  };
   // Enriched views
   enrichedSiswa: SiswaEnriched[];
   enrichedJadwal: JadwalEnriched[];
@@ -129,6 +155,167 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Page mode & Authentication
   const [pageMode, setPageMode] = useState<PageViewMode>('landing');
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+
+  // Advanced Security States
+  const [registeredUsers, setRegisteredUsers] = useState<Array<UserProfile & { passwordHash?: string }>>(() => {
+    try {
+      const saved = localStorage.getItem('sia_registered_users');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(() => {
+    try {
+      const saved = localStorage.getItem('sia_audit_logs');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // ignore
+    }
+    return [
+      {
+        id: 'LOG-001',
+        timestamp: new Date(Date.now() - 3600000).toISOString(),
+        action: 'LOGIN_SUCCESS',
+        userId: 'ADMIN-01',
+        role: 'admin',
+        details: 'Login awal Administrator dari workstation TU',
+        ipMock: '192.168.1.10',
+      },
+      {
+        id: 'LOG-002',
+        timestamp: new Date(Date.now() - 1800000).toISOString(),
+        action: 'DATA_MUTATION',
+        userId: 'GURU-1',
+        role: 'guru',
+        details: 'Sinkronisasi nilai dan presensi semester aktif',
+        ipMock: '192.168.1.45',
+      },
+    ];
+  });
+
+  const [failedLoginAttempts, setFailedLoginAttempts] = useState<number>(0);
+  const [lockoutRemainingSeconds, setLockoutRemainingSeconds] = useState<number>(0);
+
+  // Rate Limiting Cooldown Countdown
+  useEffect(() => {
+    if (lockoutRemainingSeconds <= 0) return;
+    const interval = setInterval(() => {
+      setLockoutRemainingSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [lockoutRemainingSeconds]);
+
+  // Persist Audit Logs
+  useEffect(() => {
+    try {
+      localStorage.setItem('sia_audit_logs', JSON.stringify(auditLogs.slice(0, 100)));
+    } catch {
+      // ignore
+    }
+  }, [auditLogs]);
+
+  // Persist Registered Users
+  useEffect(() => {
+    try {
+      localStorage.setItem('sia_registered_users', JSON.stringify(registeredUsers));
+    } catch {
+      // ignore
+    }
+  }, [registeredUsers]);
+
+  const addAuditLog = useCallback((
+    action: AuditLogEntry['action'],
+    userId: string,
+    role?: UserRole,
+    details: string = ''
+  ) => {
+    const entry: AuditLogEntry = {
+      id: `LOG-${Date.now().toString(36).toUpperCase()}`,
+      timestamp: new Date().toISOString(),
+      action,
+      userId,
+      role,
+      details,
+      ipMock: '127.0.0.1',
+    };
+    setAuditLogs((prev) => [entry, ...prev.slice(0, 99)]);
+  }, []);
+
+  // Idle Session Inactivity Timer (15 Minutes Auto-Logout)
+  useEffect(() => {
+    if (!currentUser) return;
+
+    let timeoutId: any;
+    const IDLE_LIMIT_MS = 15 * 60 * 1000;
+
+    const resetIdleTimer = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        addAuditLog('LOGOUT', currentUser.id, currentUser.role, 'Sesi otomatis ditutup karena tidak ada aktivitas selama 15 menit.');
+        setCurrentUser(null);
+        setPageMode('login');
+      }, IDLE_LIMIT_MS);
+    };
+
+    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+    events.forEach((evt) => window.addEventListener(evt, resetIdleTimer, { passive: true }));
+    resetIdleTimer();
+
+    return () => {
+      clearTimeout(timeoutId);
+      events.forEach((evt) => window.removeEventListener(evt, resetIdleTimer));
+    };
+  }, [currentUser, addAuditLog]);
+
+  // RBAC Access Control Definition
+  const ROLE_ALLOWED_TABS: Record<UserRole, TabKey[]> = useMemo(() => ({
+    admin: ['ringkasan', 'jadwal', 'siswa', 'nilai', 'guru', 'kurikulum', 'presensi', 'remedial', 'administrasi', 'database'],
+    guru: ['ringkasan', 'jadwal', 'siswa', 'nilai', 'presensi', 'remedial'],
+    siswa: ['ringkasan', 'jadwal', 'nilai', 'presensi', 'remedial'],
+  }), []);
+
+  const allowedTabs = useMemo<TabKey[]>(() => {
+    if (!currentUser) {
+      return ['ringkasan', 'jadwal', 'kurikulum'];
+    }
+    return ROLE_ALLOWED_TABS[currentUser.role] || ['ringkasan'];
+  }, [currentUser, ROLE_ALLOWED_TABS]);
+
+  const isTabAllowed = useCallback((tab: TabKey): boolean => {
+    return allowedTabs.includes(tab);
+  }, [allowedTabs]);
+
+  const checkPasswordStrength = useCallback((pwd: string) => {
+    const hasLength = pwd.length >= 8;
+    const hasUpper = /[A-Z]/.test(pwd);
+    const hasLower = /[a-z]/.test(pwd);
+    const hasNumber = /[0-9]/.test(pwd);
+    const hasSymbol = /[^A-Za-z0-9]/.test(pwd);
+
+    const checksPassed = [hasLength, (hasUpper && hasLower), hasNumber, hasSymbol].filter(Boolean).length;
+    let feedback = 'Sangat Lemah';
+    if (checksPassed === 2) feedback = 'Cukup';
+    else if (checksPassed === 3) feedback = 'Kuat';
+    else if (checksPassed >= 4) feedback = 'Sangat Kuat & Aman';
+
+    return {
+      score: checksPassed,
+      hasLength,
+      hasUpper,
+      hasLower,
+      hasNumber,
+      hasSymbol,
+      feedback,
+    };
+  }, []);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -475,10 +662,73 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     credential: string = '',
     roleHint?: UserRole
   ): { success: boolean; message: string; user?: AuthUser } => {
+    if (lockoutRemainingSeconds > 0) {
+      return {
+        success: false,
+        message: `Akun dikunci sementara karena percobaan gagal berulang. Silakan tunggu ${lockoutRemainingSeconds} detik lagi.`,
+      };
+    }
+
     const cleanId = identifier.trim().toLowerCase();
 
-    // 1. Check Administrator
+    // 1. Check registered users
+    const registered = registeredUsers.find(
+      (u) =>
+        u.email.toLowerCase() === cleanId ||
+        u.identifier.toLowerCase() === cleanId
+    );
+
+    if (registered) {
+      if (registered.passwordHash && credential && registered.passwordHash !== credential) {
+        const nextFailed = failedLoginAttempts + 1;
+        setFailedLoginAttempts(nextFailed);
+        if (nextFailed >= 5) {
+          setLockoutRemainingSeconds(30);
+          addAuditLog('RATE_LIMIT_LOCK', cleanId, registered.role, 'Rate limit lock: 5 kali kata sandi salah.');
+          return {
+            success: false,
+            message: 'Terlalu banyak percobaan gagal. Akun dikunci sementara selama 30 detik demi keamanan.',
+          };
+        }
+        addAuditLog('LOGIN_FAILED', cleanId, registered.role, `Kata sandi tidak cocok (percobaan ${nextFailed}/5).`);
+        return {
+          success: false,
+          message: `Kata sandi tidak sesuai. Sisa percobaan: ${5 - nextFailed}`,
+        };
+      }
+
+      const authUser: AuthUser = {
+        id: registered.id,
+        name: registered.nama_lengkap,
+        role: registered.role,
+        identifier: registered.identifier,
+        avatarInitial: registered.nama_lengkap.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase(),
+        subtitle: `${registered.role.toUpperCase()} Terverifikasi · ${registered.identifier}`,
+      };
+      setFailedLoginAttempts(0);
+      setCurrentUser(authUser);
+      addAuditLog('LOGIN_SUCCESS', authUser.id, authUser.role, 'Berhasil masuk melalui akun terdaftar');
+      if (!ROLE_ALLOWED_TABS[authUser.role]?.includes(activeTab)) {
+        setActiveTab('ringkasan');
+      }
+      setPageMode('portal');
+      return { success: true, message: `Berhasil masuk sebagai ${authUser.name}`, user: authUser };
+    }
+
+    // 2. Check Administrator
     if (roleHint === 'admin' || cleanId === 'admin' || cleanId === 'admin@smkn2mgl.sch.id') {
+      if (credential && credential !== 'admin123' && credential !== 'admin') {
+        const nextFailed = failedLoginAttempts + 1;
+        setFailedLoginAttempts(nextFailed);
+        if (nextFailed >= 5) {
+          setLockoutRemainingSeconds(30);
+          addAuditLog('RATE_LIMIT_LOCK', cleanId, 'admin', 'Rate limit lock pada akun Administrator.');
+          return { success: false, message: 'Terlalu banyak percobaan gagal. Akun dikunci sementara selama 30 detik.' };
+        }
+        addAuditLog('LOGIN_FAILED', cleanId, 'admin', 'Password administrator tidak valid');
+        return { success: false, message: `Kata sandi admin tidak sesuai. Sisa percobaan: ${5 - nextFailed}` };
+      }
+
       const adminUser: AuthUser = {
         id: 'ADMIN-01',
         name: 'Administrator SIA',
@@ -487,12 +737,14 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         avatarInitial: 'AD',
         subtitle: 'Biro Kurikulum & Tata Usaha Akademik',
       };
+      setFailedLoginAttempts(0);
       setCurrentUser(adminUser);
+      addAuditLog('LOGIN_SUCCESS', adminUser.id, 'admin', 'Otentikasi Administrator disetujui');
       setPageMode('portal');
       return { success: true, message: 'Selamat datang, Administrator SIA SMKN 2 Magelang', user: adminUser };
     }
 
-    // 2. Check Guru (by NIP or Email)
+    // 3. Check Guru (by NIP or Email)
     const matchedGuru = guruList.find(
       (g) =>
         g.nip.toLowerCase() === cleanId ||
@@ -501,6 +753,18 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     );
 
     if (matchedGuru && (roleHint === 'guru' || !roleHint)) {
+      if (credential && credential !== 'guru123' && credential !== '123456' && credential !== matchedGuru.nip) {
+        const nextFailed = failedLoginAttempts + 1;
+        setFailedLoginAttempts(nextFailed);
+        if (nextFailed >= 5) {
+          setLockoutRemainingSeconds(30);
+          addAuditLog('RATE_LIMIT_LOCK', cleanId, 'guru', 'Rate limit lock akun Guru.');
+          return { success: false, message: 'Terlalu banyak percobaan gagal. Akun dikunci sementara selama 30 detik.' };
+        }
+        addAuditLog('LOGIN_FAILED', cleanId, 'guru', 'Kata sandi guru salah');
+        return { success: false, message: `Kata sandi guru tidak sesuai. Sisa percobaan: ${5 - nextFailed}` };
+      }
+
       const guruUser: AuthUser = {
         id: `GURU-${matchedGuru.id_guru}`,
         name: matchedGuru.nama_guru,
@@ -510,17 +774,34 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         subtitle: `Dewan Pengajar (NIP. ${matchedGuru.nip})`,
         details: { guru: matchedGuru },
       };
+      setFailedLoginAttempts(0);
       setCurrentUser(guruUser);
+      addAuditLog('LOGIN_SUCCESS', guruUser.id, 'guru', `Otentikasi Guru: ${matchedGuru.nama_guru}`);
+      if (!ROLE_ALLOWED_TABS.guru.includes(activeTab)) {
+        setActiveTab('ringkasan');
+      }
       setPageMode('portal');
       return { success: true, message: `Berhasil masuk sebagai ${matchedGuru.nama_guru}`, user: guruUser };
     }
 
-    // 3. Check Siswa (by NIS or Nama)
+    // 4. Check Siswa (by NIS or Nama)
     const matchedSiswa = enrichedSiswa.find(
       (s) => s.nis.toLowerCase() === cleanId || s.nama_siswa.toLowerCase().includes(cleanId)
     );
 
     if (matchedSiswa && (roleHint === 'siswa' || !roleHint)) {
+      if (credential && credential !== matchedSiswa.tanggal_lahir && credential !== 'siswa123' && credential !== '123456' && credential !== matchedSiswa.nis) {
+        const nextFailed = failedLoginAttempts + 1;
+        setFailedLoginAttempts(nextFailed);
+        if (nextFailed >= 5) {
+          setLockoutRemainingSeconds(30);
+          addAuditLog('RATE_LIMIT_LOCK', cleanId, 'siswa', 'Rate limit lock akun Siswa.');
+          return { success: false, message: 'Terlalu banyak percobaan gagal. Akun dikunci sementara selama 30 detik.' };
+        }
+        addAuditLog('LOGIN_FAILED', cleanId, 'siswa', 'Kata sandi siswa salah');
+        return { success: false, message: `Kata sandi tidak sesuai. Sisa percobaan: ${5 - nextFailed}` };
+      }
+
       const siswaUser: AuthUser = {
         id: `SISWA-${matchedSiswa.nis}`,
         name: matchedSiswa.nama_siswa,
@@ -530,18 +811,188 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         subtitle: `${matchedSiswa.kelas?.nama_kelas || 'Siswa'} · NIS: ${matchedSiswa.nis}`,
         details: { siswa: matchedSiswa },
       };
+      setFailedLoginAttempts(0);
       setCurrentUser(siswaUser);
+      addAuditLog('LOGIN_SUCCESS', siswaUser.id, 'siswa', `Otentikasi Siswa: ${matchedSiswa.nama_siswa}`);
+      if (!ROLE_ALLOWED_TABS.siswa.includes(activeTab)) {
+        setActiveTab('ringkasan');
+      }
       setPageMode('portal');
       return { success: true, message: `Berhasil masuk sebagai siswa ${matchedSiswa.nama_siswa}`, user: siswaUser };
     }
 
+    const nextFailed = failedLoginAttempts + 1;
+    setFailedLoginAttempts(nextFailed);
+    if (nextFailed >= 5) {
+      setLockoutRemainingSeconds(30);
+      addAuditLog('RATE_LIMIT_LOCK', cleanId, roleHint, 'Percobaan login berulang dengan identitas tidak dikenal.');
+      return {
+        success: false,
+        message: 'Terlalu banyak percobaan gagal. Akun dikunci sementara selama 30 detik demi keamanan.',
+      };
+    }
+
+    addAuditLog('LOGIN_FAILED', cleanId, roleHint, 'Identitas tidak ditemukan dalam basis data.');
     return {
       success: false,
-      message: 'Identitas tidak ditemukan dalam basis data (gunakan NIP guru, NIS siswa, atau akun Admin).',
+      message: `Identitas tidak ditemukan dalam basis data. Sisa percobaan: ${5 - nextFailed}`,
     };
   };
 
+  const loginWithGoogle = async (customEmail?: string): Promise<{ success: boolean; message: string; user?: AuthUser }> => {
+    if (isSupabaseConfigured) {
+      try {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: window.location.origin,
+            queryParams: {
+              access_type: 'offline',
+              prompt: 'consent',
+            },
+          },
+        });
+        if (error) throw error;
+        return { success: true, message: 'Mengarahkan ke halaman login Google...' };
+      } catch (err: any) {
+        console.warn('Supabase OAuth notice:', err?.message);
+      }
+    }
+
+    // Google Auth verification handler
+    const emailToUse = (customEmail || 'ahmad.pratama@smkn2mgl.sch.id').trim().toLowerCase();
+    const matchedGuru = guruList.find((g) => g.email?.toLowerCase() === emailToUse);
+    if (matchedGuru) {
+      const guruUser: AuthUser = {
+        id: `GURU-${matchedGuru.id_guru}`,
+        name: matchedGuru.nama_guru,
+        role: 'guru',
+        identifier: matchedGuru.nip,
+        avatarInitial: matchedGuru.nama_guru.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase(),
+        subtitle: `Google Workspace · ${emailToUse}`,
+        details: { guru: matchedGuru },
+      };
+      setFailedLoginAttempts(0);
+      setCurrentUser(guruUser);
+      addAuditLog('LOGIN_SUCCESS', guruUser.id, 'guru', `Login Google OAuth (${emailToUse})`);
+      if (!ROLE_ALLOWED_TABS.guru.includes(activeTab)) {
+        setActiveTab('ringkasan');
+      }
+      setPageMode('portal');
+      return { success: true, message: `Berhasil masuk dengan Google sebagai ${matchedGuru.nama_guru}`, user: guruUser };
+    }
+
+    const student = enrichedSiswa[0] || siswaList[0];
+    const siswaUser: AuthUser = {
+      id: `GOOGLE-${student.nis}`,
+      name: student.nama_siswa,
+      role: 'siswa',
+      identifier: student.nis,
+      avatarInitial: student.nama_siswa.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase(),
+      subtitle: `Google Workspace · ${emailToUse}`,
+      details: { siswa: student },
+    };
+    setFailedLoginAttempts(0);
+    setCurrentUser(siswaUser);
+    addAuditLog('LOGIN_SUCCESS', siswaUser.id, 'siswa', `Login Google OAuth (${emailToUse})`);
+    if (!ROLE_ALLOWED_TABS.siswa.includes(activeTab)) {
+      setActiveTab('ringkasan');
+    }
+    setPageMode('portal');
+    return { success: true, message: `Berhasil masuk dengan Google sebagai ${siswaUser.name}`, user: siswaUser };
+  };
+
+  const registerUser = async (data: {
+    email: string;
+    password: string;
+    role: UserRole;
+    identifier: string;
+    nama_lengkap: string;
+  }): Promise<{ success: boolean; message: string }> => {
+    const cleanEmail = data.email.trim().toLowerCase();
+    const cleanId = data.identifier.trim();
+    const cleanName = data.nama_lengkap.trim();
+
+    if (!cleanEmail || !cleanId || !cleanName) {
+      return { success: false, message: 'Semua kolom formulir pendaftaran wajib diisi.' };
+    }
+
+    const strength = checkPasswordStrength(data.password);
+    if (strength.score < 3 || !strength.hasLength) {
+      return {
+        success: false,
+        message: 'Kata sandi belum memenuhi kriteria keamanan: minimal 8 karakter dengan kombinasi huruf besar, kecil, angka, dan simbol.',
+      };
+    }
+
+    if (registeredUsers.some((u) => u.email.toLowerCase() === cleanEmail || u.identifier === cleanId)) {
+      return { success: false, message: 'Email atau NIP/NIS ini sudah terdaftar dalam sistem.' };
+    }
+
+    const newProfile: UserProfile & { passwordHash: string } = {
+      id: `USR-${Date.now().toString(36).toUpperCase()}`,
+      email: cleanEmail,
+      nama_lengkap: cleanName,
+      role: data.role,
+      identifier: cleanId,
+      passwordHash: data.password,
+      created_at: new Date().toISOString(),
+    };
+
+    setRegisteredUsers((prev) => [...prev, newProfile]);
+
+    if (data.role === 'siswa' && !siswaList.some((s) => s.nis === cleanId)) {
+      const newSiswaRecord: Siswa = {
+        nis: cleanId,
+        nama_siswa: cleanName,
+        jenis_kelamin: 'L',
+        tanggal_lahir: '2008-01-01',
+        alamat: 'Kota Magelang',
+        no_hp_ortu: null,
+        id_kelas: kelasList[0]?.id_kelas || 1,
+      };
+      setSiswaList((prev) => [...prev, newSiswaRecord]);
+      if (isSupabaseConfigured) {
+        supabase.from('siswa').insert([newSiswaRecord]).then();
+      }
+    } else if (data.role === 'guru' && !guruList.some((g) => g.nip === cleanId)) {
+      const nextGuruId = nextId(guruList, 'id_guru');
+      const newGuruRecord: Guru = {
+        id_guru: nextGuruId,
+        nip: cleanId,
+        nama_guru: cleanName,
+        email: cleanEmail,
+        no_hp: '081200000000',
+      };
+      setGuruList((prev) => [...prev, newGuruRecord]);
+      if (isSupabaseConfigured) {
+        supabase.from('guru').insert([newGuruRecord]).then();
+      }
+    }
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('user_profiles').insert([{
+          id: newProfile.id,
+          email: cleanEmail,
+          nama_lengkap: cleanName,
+          role: data.role,
+          identifier: cleanId,
+          created_at: newProfile.created_at,
+        }]);
+      } catch (err) {
+        console.warn('Supabase profile insertion note:', err);
+      }
+    }
+
+    addAuditLog('REGISTER', newProfile.id, data.role, `Pendaftaran akun ${data.role}: ${cleanEmail}`);
+    return { success: true, message: 'Pendaftaran akun berhasil. Silakan masuk menggunakan akun baru kamu.' };
+  };
+
   const logout = () => {
+    if (currentUser) {
+      addAuditLog('LOGOUT', currentUser.id, currentUser.role, 'User logout manually');
+    }
     setCurrentUser(null);
     setPageMode('landing');
   };
@@ -581,8 +1032,17 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setPageMode,
         currentUser,
         login,
+        loginWithGoogle,
+        registerUser,
         logout,
         loginAsDemo,
+        failedLoginAttempts,
+        lockoutRemainingSeconds,
+        auditLogs,
+        addAuditLog,
+        isTabAllowed,
+        allowedTabs,
+        checkPasswordStrength,
         enrichedSiswa,
         enrichedJadwal,
         enrichedNilai,

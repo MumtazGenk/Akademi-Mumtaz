@@ -29,6 +29,9 @@ export const DatabaseInspectorView: React.FC = () => {
     nilaiList,
     siswaList,
     tahunAjaranList,
+    presensiList,
+    remedialList,
+    auditLogs,
     isSupabaseConfigured,
     isSupabaseConnected,
     isLoadingSupabase,
@@ -50,6 +53,10 @@ export const DatabaseInspectorView: React.FC = () => {
     nilai: nilaiList,
     siswa: siswaList,
     tahun_ajaran: tahunAjaranList,
+    presensi: presensiList,
+    remedial: remedialList,
+    user_profiles: [],
+    auth_audit_logs: auditLogs,
   };
 
   const currentSchema = SQL_SCHEMA_OVERVIEW.find((s) => s.table === selectedTable);

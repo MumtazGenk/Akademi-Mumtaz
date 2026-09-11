@@ -138,4 +138,23 @@ export interface AuthUser {
   };
 }
 
-export type PageViewMode = 'landing' | 'portal';
+export type PageViewMode = 'landing' | 'login' | 'register' | 'portal' | '404';
+
+export interface AuditLogEntry {
+  id: string;
+  timestamp: string;
+  action: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'LOGOUT' | 'REGISTER' | 'RATE_LIMIT_LOCK' | 'ACCESS_DENIED' | 'DATA_MUTATION';
+  userId: string;
+  role?: UserRole;
+  details: string;
+  ipMock?: string;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  nama_lengkap: string;
+  role: UserRole;
+  identifier: string; // NIP, NIS, or 'admin'
+  created_at: string;
+}
