@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useDatabase } from '../../context/DatabaseContext';
-import { SiswaEnriched, JenisKelamin } from '../../types';
+import { SiswaEnriched, Siswa, JenisKelamin } from '../../types';
 import { StudentRaporModal } from '../modals/StudentRaporModal';
+import { ConfirmDeleteModal } from '../modals/ConfirmDeleteModal';
 import {
   Users,
   Search,
@@ -15,10 +16,24 @@ import {
   MapPin,
   Calendar,
   Layers,
+  Edit2,
+  Trash2,
+  X,
 } from 'lucide-react';
 
 export const SiswaView: React.FC = () => {
-  const { enrichedSiswa, kelasList, jurusanList, searchQuery, addSiswa } = useDatabase();
+  const {
+    enrichedSiswa,
+    kelasList,
+    jurusanList,
+    searchQuery,
+    addSiswa,
+    updateSiswa,
+    deleteSiswa,
+    currentUser,
+  } = useDatabase();
+
+  const isAdmin = currentUser?.role === 'admin';
 
   const [selectedTingkat, setSelectedTingkat] = useState<string>('Semua');
   const [selectedKelas, setSelectedKelas] = useState<string>('Semua');
@@ -28,6 +43,8 @@ export const SiswaView: React.FC = () => {
 
   const [selectedStudentForRapor, setSelectedStudentForRapor] = useState<SiswaEnriched | null>(null);
   const [showAddStudentModal, setShowAddStudentModal] = useState<boolean>(false);
+  const [editingStudent, setEditingStudent] = useState<Siswa | null>(null);
+  const [deletingStudent, setDeletingStudent] = useState<Siswa | null>(null);
 
   // New student state
   const [newNis, setNewNis] = useState('');
@@ -36,6 +53,43 @@ export const SiswaView: React.FC = () => {
   const [newTglLahir, setNewTglLahir] = useState('2008-01-01');
   const [newAlamat, setNewAlamat] = useState('Magelang');
   const [newKelasId, setNewKelasId] = useState<number>(kelasList[0]?.id_kelas || 1);
+
+  // Edit student state
+  const [editNama, setEditNama] = useState('');
+  const [editGender, setEditGender] = useState<JenisKelamin>('L');
+  const [editTglLahir, setEditTglLahir] = useState('2008-01-01');
+  const [editAlamat, setEditAlamat] = useState('Magelang');
+  const [editKelasId, setEditKelasId] = useState<number>(kelasList[0]?.id_kelas || 1);
+
+  const startEditStudent = (siswa: Siswa) => {
+    setEditingStudent(siswa);
+    setEditNama(siswa.nama_siswa);
+    setEditGender(siswa.jenis_kelamin);
+    setEditTglLahir(siswa.tanggal_lahir);
+    setEditAlamat(siswa.alamat);
+    setEditKelasId(siswa.id_kelas);
+  };
+
+  const handleUpdateStudent = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingStudent || !editNama.trim()) return;
+
+    updateSiswa(editingStudent.nis, {
+      nama_siswa: editNama.trim(),
+      jenis_kelamin: editGender,
+      tanggal_lahir: editTglLahir,
+      alamat: editAlamat.trim(),
+      id_kelas: Number(editKelasId),
+    });
+
+    setEditingStudent(null);
+  };
+
+  const handleDeleteStudent = () => {
+    if (!deletingStudent) return;
+    deleteSiswa(deletingStudent.nis);
+    setDeletingStudent(null);
+  };
 
   const filteredStudents = useMemo(() => {
     return enrichedSiswa.filter((item) => {
@@ -101,15 +155,18 @@ export const SiswaView: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowAddStudentModal(true)}
-              className="px-3.5 py-1.5 text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 text-white rounded-md flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>Registrasi Siswa Baru</span>
-            </button>
-          </div>
+          {isAdmin && (
+            <div className="flex items-center gap-2">
+              <button
+                id="btn-add-siswa"
+                onClick={() => setShowAddStudentModal(true)}
+                className="px-3.5 py-1.5 text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 text-white rounded-md flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Registrasi Siswa Baru</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Filter Selection */}
@@ -279,14 +336,34 @@ export const SiswaView: React.FC = () => {
                         )}
                       </td>
                       <td className="py-3 px-4 text-center">
-                        <button
-                          onClick={() => setSelectedStudentForRapor(siswa)}
-                          className="px-2.5 py-1 text-xs font-semibold bg-white text-zinc-800 hover:text-zinc-950 border border-zinc-300 hover:border-zinc-500 rounded flex items-center gap-1 mx-auto transition-colors cursor-pointer"
-                          title="Lihat Lembar Rapor Siswa"
-                        >
-                          <FileText className="w-3 h-3" />
-                          <span>Rapor</span>
-                        </button>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => setSelectedStudentForRapor(siswa)}
+                            className="px-2 py-1 text-xs font-semibold bg-white text-zinc-800 hover:text-zinc-950 border border-zinc-300 hover:border-zinc-500 rounded flex items-center gap-1 transition-colors cursor-pointer"
+                            title="Lihat Lembar Rapor Siswa"
+                          >
+                            <FileText className="w-3 h-3" />
+                            <span>Rapor</span>
+                          </button>
+                          {isAdmin && (
+                            <>
+                              <button
+                                onClick={() => startEditStudent(siswa)}
+                                className="p-1 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded border border-zinc-200 transition-colors cursor-pointer"
+                                title="Edit Data Siswa"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => setDeletingStudent(siswa)}
+                                className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded border border-rose-200 transition-colors cursor-pointer"
+                                title="Hapus Siswa"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -307,15 +384,15 @@ export const SiswaView: React.FC = () => {
 
       {/* Add Student Modal */}
       {showAddStudentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-xs">
-          <div className="bg-white border border-zinc-300 rounded-lg shadow-xl w-full max-w-md overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white border border-zinc-300 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-150">
             <div className="bg-zinc-900 text-white px-5 py-3.5 flex items-center justify-between">
               <h3 className="font-bold text-sm">Registrasi Peserta Didik Baru</h3>
               <button
                 onClick={() => setShowAddStudentModal(false)}
-                className="text-zinc-400 hover:text-white"
+                className="text-zinc-400 hover:text-white p-1 rounded transition-colors cursor-pointer"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -327,7 +404,7 @@ export const SiswaView: React.FC = () => {
                   placeholder="Contoh: 2421"
                   value={newNis}
                   onChange={(e) => setNewNis(e.target.value)}
-                  className="w-full bg-zinc-50 border border-zinc-200 rounded px-3 py-1.5 font-mono text-zinc-900"
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-3 py-1.5 font-mono text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
                   required
                 />
               </div>
@@ -339,7 +416,7 @@ export const SiswaView: React.FC = () => {
                   placeholder="Nama Lengkap Sesuai Akta"
                   value={newNama}
                   onChange={(e) => setNewNama(e.target.value)}
-                  className="w-full bg-zinc-50 border border-zinc-200 rounded px-3 py-1.5 text-zinc-900"
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-3 py-1.5 text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
                   required
                 />
               </div>
@@ -350,7 +427,7 @@ export const SiswaView: React.FC = () => {
                   <select
                     value={newGender}
                     onChange={(e) => setNewGender(e.target.value as JenisKelamin)}
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded px-2.5 py-1.5 text-zinc-900"
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-2.5 py-1.5 text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
                   >
                     <option value="L">Laki-laki (L)</option>
                     <option value="P">Perempuan (P)</option>
@@ -361,7 +438,7 @@ export const SiswaView: React.FC = () => {
                   <select
                     value={newKelasId}
                     onChange={(e) => setNewKelasId(Number(e.target.value))}
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded px-2.5 py-1.5 text-zinc-900"
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-2.5 py-1.5 text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
                   >
                     {kelasList.map((k) => (
                       <option key={k.id_kelas} value={k.id_kelas}>
@@ -378,19 +455,19 @@ export const SiswaView: React.FC = () => {
                   type="date"
                   value={newTglLahir}
                   onChange={(e) => setNewTglLahir(e.target.value)}
-                  className="w-full bg-zinc-50 border border-zinc-200 rounded px-3 py-1.5 font-mono text-zinc-900"
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-3 py-1.5 font-mono text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-zinc-600 font-medium mb-1">Alamat Tempat Tinggal</label>
+                <label className="block text-zinc-600 font-medium mb-1">Alamat Domisili</label>
                 <textarea
                   rows={2}
                   placeholder="Kelurahan / Kecamatan, Magelang"
                   value={newAlamat}
                   onChange={(e) => setNewAlamat(e.target.value)}
-                  className="w-full bg-zinc-50 border border-zinc-200 rounded px-3 py-1.5 text-zinc-900"
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-3 py-1.5 text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
                   required
                 />
               </div>
@@ -399,13 +476,13 @@ export const SiswaView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowAddStudentModal(false)}
-                  className="px-3.5 py-1.5 text-zinc-600 hover:text-zinc-900"
+                  className="px-3.5 py-1.5 text-zinc-600 hover:text-zinc-900 rounded-md border border-zinc-200 hover:bg-zinc-50 cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 font-semibold bg-zinc-900 text-white rounded hover:bg-zinc-800"
+                  className="px-4 py-1.5 font-semibold bg-zinc-900 text-white rounded-md hover:bg-zinc-800 cursor-pointer shadow-xs"
                 >
                   Simpan Siswa
                 </button>
@@ -413,6 +490,117 @@ export const SiswaView: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Edit Student Modal */}
+      {editingStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white border border-zinc-300 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-150">
+            <div className="bg-zinc-900 text-white px-5 py-3.5 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-sm">Edit Data Siswa</h3>
+                <p className="text-[11px] text-zinc-400 font-mono">NIS: {editingStudent.nis}</p>
+              </div>
+              <button
+                onClick={() => setEditingStudent(null)}
+                className="text-zinc-400 hover:text-white p-1 rounded transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateStudent} className="p-5 space-y-3.5 text-xs">
+              <div>
+                <label className="block text-zinc-600 font-medium mb-1">Nama Lengkap Siswa</label>
+                <input
+                  type="text"
+                  value={editNama}
+                  onChange={(e) => setEditNama(e.target.value)}
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-3 py-1.5 text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-zinc-600 font-medium mb-1">Jenis Kelamin</label>
+                  <select
+                    value={editGender}
+                    onChange={(e) => setEditGender(e.target.value as JenisKelamin)}
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-2.5 py-1.5 text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
+                  >
+                    <option value="L">Laki-laki (L)</option>
+                    <option value="P">Perempuan (P)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-zinc-600 font-medium mb-1">Rombel (Kelas)</label>
+                  <select
+                    value={editKelasId}
+                    onChange={(e) => setEditKelasId(Number(e.target.value))}
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-2.5 py-1.5 text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
+                  >
+                    {kelasList.map((k) => (
+                      <option key={k.id_kelas} value={k.id_kelas}>
+                        {k.nama_kelas}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-zinc-600 font-medium mb-1">Tanggal Lahir</label>
+                <input
+                  type="date"
+                  value={editTglLahir}
+                  onChange={(e) => setEditTglLahir(e.target.value)}
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-3 py-1.5 font-mono text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-600 font-medium mb-1">Alamat Domisili</label>
+                <textarea
+                  rows={2}
+                  value={editAlamat}
+                  onChange={(e) => setEditAlamat(e.target.value)}
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-3 py-1.5 text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
+                  required
+                />
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2 border-t border-zinc-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingStudent(null)}
+                  className="px-3.5 py-1.5 text-zinc-600 hover:text-zinc-900 rounded-md border border-zinc-200 hover:bg-zinc-50 cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 font-semibold bg-zinc-900 text-white rounded-md hover:bg-zinc-800 cursor-pointer shadow-xs"
+                >
+                  Simpan Perubahan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingStudent && (
+        <ConfirmDeleteModal
+          isOpen={!!deletingStudent}
+          title="Hapus Data Siswa"
+          itemType="siswa"
+          itemName={`${deletingStudent.nama_siswa} (NIS: ${deletingStudent.nis})`}
+          onConfirm={handleDeleteStudent}
+          onClose={() => setDeletingStudent(null)}
+        />
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useDatabase } from '../../context/DatabaseContext';
-import { NilaiEnriched } from '../../types';
+import { NilaiEnriched, Nilai } from '../../types';
+import { ConfirmDeleteModal } from '../modals/ConfirmDeleteModal';
 import {
   Award,
   Filter,
@@ -13,6 +14,9 @@ import {
   Search,
   BookOpen,
   TrendingUp,
+  Plus,
+  Trash2,
+  X,
 } from 'lucide-react';
 
 export const NilaiView: React.FC = () => {
@@ -21,9 +25,16 @@ export const NilaiView: React.FC = () => {
     mapelList,
     guruList,
     kelasList,
+    siswaList,
+    tahunAjaranList,
     searchQuery,
     updateNilai,
+    addNilai,
+    deleteNilai,
+    currentUser,
   } = useDatabase();
+
+  const isAdmin = currentUser?.role === 'admin';
 
   const [selectedMapel, setSelectedMapel] = useState<string>('Semua');
   const [selectedGuru, setSelectedGuru] = useState<string>('Semua');
@@ -32,11 +43,24 @@ export const NilaiView: React.FC = () => {
   const [sortField, setSortField] = useState<'nilai_akhir' | 'nilai_tugas' | 'nilai_uts' | 'nilai_uas' | 'nis'>('nilai_akhir');
   const [sortAsc, setSortAsc] = useState<boolean>(false);
 
+  // Add state
+  const [showAddModal, setShowAddModal] = useState<boolean>(false);
+  const [newNis, setNewNis] = useState<string>(siswaList[0]?.nis || '');
+  const [newMapelId, setNewMapelId] = useState<number>(mapelList[0]?.id_mapel || 1);
+  const [newGuruId, setNewGuruId] = useState<number>(guruList[0]?.id_guru || 1);
+  const [newTahunId, setNewTahunId] = useState<number>(tahunAjaranList[0]?.id_tahun_ajaran || 1);
+  const [newTugas, setNewTugas] = useState<number>(80);
+  const [newUTS, setNewUTS] = useState<number>(80);
+  const [newUAS, setNewUAS] = useState<number>(80);
+
   // Editing state
   const [editingGrade, setEditingGrade] = useState<NilaiEnriched | null>(null);
   const [editTugas, setEditTugas] = useState<number>(0);
   const [editUTS, setEditUTS] = useState<number>(0);
   const [editUAS, setEditUAS] = useState<number>(0);
+
+  // Deleting state
+  const [deletingGrade, setDeletingGrade] = useState<NilaiEnriched | null>(null);
 
   const KKM = 75.0;
 
@@ -56,6 +80,27 @@ export const NilaiView: React.FC = () => {
       nilai_uas: Number(editUAS),
     });
     setEditingGrade(null);
+  };
+
+  const handleCreateNilai = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newNis) return;
+    addNilai({
+      nis: newNis,
+      id_mapel: Number(newMapelId),
+      id_guru: Number(newGuruId),
+      id_tahun_ajaran: Number(newTahunId),
+      nilai_tugas: Number(newTugas),
+      nilai_uts: Number(newUTS),
+      nilai_uas: Number(newUAS),
+    });
+    setShowAddModal(false);
+  };
+
+  const handleDeleteNilai = () => {
+    if (!deletingGrade) return;
+    deleteNilai(deletingGrade.id_nilai);
+    setDeletingGrade(null);
   };
 
   const filteredNilai = useMemo(() => {
@@ -165,11 +210,30 @@ export const NilaiView: React.FC = () => {
               Rekapitulasi Penilaian Hasil Belajar Siswa
             </h2>
             <p className="text-xs text-zinc-500 mt-0.5">
-              Buku nilai terpadu semester ganjil · Data tabel `nilai` pada database
+              Buku nilai terpadu semester ganjil · Data tabel `nilai` pada basis data
             </p>
           </div>
 
           <div className="flex items-center gap-2">
+            {isAdmin && (
+              <button
+                onClick={() => {
+                  setNewNis(siswaList[0]?.nis || '');
+                  setNewMapelId(mapelList[0]?.id_mapel || 1);
+                  setNewGuruId(guruList[0]?.id_guru || 1);
+                  setNewTahunId(tahunAjaranList[0]?.id_tahun_ajaran || 1);
+                  setNewTugas(80);
+                  setNewUTS(80);
+                  setNewUAS(80);
+                  setShowAddModal(true);
+                }}
+                className="px-3.5 py-1.5 text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 text-white rounded-md flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Tambah Nilai Siswa</span>
+              </button>
+            )}
+
             <button
               onClick={exportCSV}
               className="px-3.5 py-1.5 text-xs font-semibold bg-white border border-zinc-200 hover:bg-zinc-50 text-zinc-800 rounded-md flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
@@ -332,7 +396,7 @@ export const NilaiView: React.FC = () => {
                 </th>
                 <th className="py-3 px-3 text-center">Predikat</th>
                 <th className="py-3 px-3 text-center">Status</th>
-                <th className="py-3 px-3 text-center">Edit</th>
+                <th className="py-3 px-3 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200">
@@ -394,13 +458,24 @@ export const NilaiView: React.FC = () => {
                         )}
                       </td>
                       <td className="py-3 px-3 text-center">
-                        <button
-                          onClick={() => handleStartEdit(item)}
-                          className="p-1.5 text-zinc-600 hover:text-zinc-950 rounded hover:bg-zinc-100 transition-colors cursor-pointer"
-                          title="Perbarui Nilai"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => handleStartEdit(item)}
+                            className="p-1.5 text-zinc-500 hover:text-zinc-950 rounded hover:bg-zinc-100 transition-colors cursor-pointer"
+                            title="Perbarui Nilai"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={() => setDeletingGrade(item)}
+                              className="p-1.5 text-rose-500 hover:text-rose-700 rounded hover:bg-rose-50 transition-colors cursor-pointer"
+                              title="Hapus Nilai"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -411,10 +486,155 @@ export const NilaiView: React.FC = () => {
         </div>
       </div>
 
+      {/* Add Grade Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white border border-zinc-300 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-150">
+            <div className="bg-zinc-900 text-white px-5 py-3.5 flex items-center justify-between">
+              <h3 className="font-bold text-sm">Entri Nilai Siswa Baru</h3>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="text-zinc-400 hover:text-white p-1 rounded cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateNilai} className="p-5 space-y-3.5 text-xs">
+              <div>
+                <label className="block text-zinc-600 font-medium mb-1">Pilih Siswa</label>
+                <select
+                  value={newNis}
+                  onChange={(e) => setNewNis(e.target.value)}
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-2.5 py-1.5 text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
+                >
+                  {siswaList.map((s) => (
+                    <option key={s.nis} value={s.nis}>
+                      {s.nama_siswa} (NIS: {s.nis})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-zinc-600 font-medium mb-1">Mata Pelajaran</label>
+                <select
+                  value={newMapelId}
+                  onChange={(e) => setNewMapelId(Number(e.target.value))}
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-2.5 py-1.5 text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
+                >
+                  {mapelList.map((m) => (
+                    <option key={m.id_mapel} value={m.id_mapel}>
+                      {m.nama_mapel} ({m.kode_mapel})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-zinc-600 font-medium mb-1">Guru Pengampu</label>
+                  <select
+                    value={newGuruId}
+                    onChange={(e) => setNewGuruId(Number(e.target.value))}
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-2.5 py-1.5 text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
+                  >
+                    {guruList.map((g) => (
+                      <option key={g.id_guru} value={g.id_guru}>
+                        {g.nama_guru}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-zinc-600 font-medium mb-1">Tahun Ajaran</label>
+                  <select
+                    value={newTahunId}
+                    onChange={(e) => setNewTahunId(Number(e.target.value))}
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-2.5 py-1.5 text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
+                  >
+                    {tahunAjaranList.map((t) => (
+                      <option key={t.id_tahun_ajaran} value={t.id_tahun_ajaran}>
+                        {t.tahun_ajaran} ({t.semester})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 pt-2">
+                <div>
+                  <label className="block text-zinc-600 font-medium mb-1">Nilai Tugas (30%)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    max={100}
+                    value={newTugas}
+                    onChange={(e) => setNewTugas(Number(e.target.value))}
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-2.5 py-1.5 font-mono text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-zinc-600 font-medium mb-1">Nilai UTS (30%)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    max={100}
+                    value={newUTS}
+                    onChange={(e) => setNewUTS(Number(e.target.value))}
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-2.5 py-1.5 font-mono text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-zinc-600 font-medium mb-1">Nilai UAS (40%)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    max={100}
+                    value={newUAS}
+                    onChange={(e) => setNewUAS(Number(e.target.value))}
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-2.5 py-1.5 font-mono text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Instant calculation preview */}
+              <div className="p-3 bg-zinc-50 rounded-lg border border-zinc-200 flex items-center justify-between">
+                <span className="text-zinc-600 font-medium">Estimasi Nilai Akhir:</span>
+                <span className="font-mono font-bold text-sm text-zinc-950">
+                  {((newTugas * 0.3) + (newUTS * 0.3) + (newUAS * 0.4)).toFixed(2)}
+                </span>
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2 border-t border-zinc-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-3.5 py-1.5 text-zinc-600 hover:text-zinc-900 rounded-md border border-zinc-200 hover:bg-zinc-50 cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 font-semibold bg-zinc-900 text-white rounded-md hover:bg-zinc-800 cursor-pointer shadow-xs"
+                >
+                  Simpan Nilai
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Edit Grade Modal */}
       {editingGrade && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-xs">
-          <div className="bg-white border border-zinc-300 rounded-lg shadow-xl w-full max-w-md overflow-hidden text-zinc-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white border border-zinc-300 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-150">
             <div className="bg-zinc-900 text-white px-5 py-3.5 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-sm">Perbarui Nilai Siswa</h3>
@@ -422,9 +642,9 @@ export const NilaiView: React.FC = () => {
               </div>
               <button
                 onClick={() => setEditingGrade(null)}
-                className="text-zinc-400 hover:text-white"
+                className="text-zinc-400 hover:text-white p-1 rounded cursor-pointer"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -446,7 +666,7 @@ export const NilaiView: React.FC = () => {
                     max={100}
                     value={editTugas}
                     onChange={(e) => setEditTugas(Number(e.target.value))}
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded px-2.5 py-1.5 font-mono text-zinc-900 text-sm"
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-2.5 py-1.5 font-mono text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white text-sm"
                     required
                   />
                 </div>
@@ -459,7 +679,7 @@ export const NilaiView: React.FC = () => {
                     max={100}
                     value={editUTS}
                     onChange={(e) => setEditUTS(Number(e.target.value))}
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded px-2.5 py-1.5 font-mono text-zinc-900 text-sm"
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-2.5 py-1.5 font-mono text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white text-sm"
                     required
                   />
                 </div>
@@ -472,7 +692,7 @@ export const NilaiView: React.FC = () => {
                     max={100}
                     value={editUAS}
                     onChange={(e) => setEditUAS(Number(e.target.value))}
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded px-2.5 py-1.5 font-mono text-zinc-900 text-sm"
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-md px-2.5 py-1.5 font-mono text-zinc-900 focus:outline-hidden focus:border-zinc-900 focus:bg-white text-sm"
                     required
                   />
                 </div>
@@ -486,17 +706,17 @@ export const NilaiView: React.FC = () => {
                 </span>
               </div>
 
-              <div className="pt-2 flex justify-end gap-2">
+              <div className="pt-2 flex justify-end gap-2 border-t border-zinc-100">
                 <button
                   type="button"
                   onClick={() => setEditingGrade(null)}
-                  className="px-3 py-1.5 text-zinc-600 hover:text-zinc-900"
+                  className="px-3.5 py-1.5 text-zinc-600 hover:text-zinc-900 rounded-md border border-zinc-200 hover:bg-zinc-50 cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 font-semibold bg-zinc-900 text-white rounded hover:bg-zinc-800"
+                  className="px-4 py-1.5 font-semibold bg-zinc-900 text-white rounded-md hover:bg-zinc-800 cursor-pointer shadow-xs"
                 >
                   Simpan Perubahan
                 </button>
@@ -504,6 +724,18 @@ export const NilaiView: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Delete Grade Modal */}
+      {deletingGrade && (
+        <ConfirmDeleteModal
+          isOpen={!!deletingGrade}
+          title="Hapus Catatan Nilai"
+          itemType="nilai"
+          itemName={`${deletingGrade.siswa?.nama_siswa} - ${deletingGrade.mapel?.nama_mapel} (Nilai Akhir: ${deletingGrade.nilai_akhir})`}
+          onConfirm={handleDeleteNilai}
+          onClose={() => setDeletingGrade(null)}
+        />
       )}
     </div>
   );
