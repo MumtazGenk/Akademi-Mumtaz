@@ -91,6 +91,11 @@ interface DatabaseContextType {
   addNilai: (newNilai: Omit<Nilai, 'id_nilai' | 'nilai_akhir'>) => Promise<void> | void;
   updateNilai: (id_nilai: number, updates: Partial<Nilai>) => Promise<void> | void;
   deleteNilai: (id_nilai: number) => Promise<void> | void;
+  // Actions - Presensi & Remedial
+  addPresensi: (newPresensi: Omit<Presensi, 'id_presensi'>) => Promise<void> | void;
+  updatePresensi: (id_presensi: number, updates: Partial<Presensi>) => Promise<void> | void;
+  deletePresensi: (id_presensi: number) => Promise<void> | void;
+  addRemedial: (newRemedial: Omit<Remedial, 'id_remedial'>) => Promise<void> | void;
   resetDatabase: () => void;
   // Supabase Status
   isSupabaseConfigured: boolean;
@@ -274,306 +279,9 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [fetchFromSupabase]);
 
-  // === Siswa CRUD ===
-  const addSiswa = async (newSiswa: Siswa) => {
-    setSiswaList((prev) => [...prev, newSiswa]);
-    if (isSupabaseConfigured) {
-      try {
-        await supabase.from('siswa').insert([newSiswa]);
-      } catch (err) {
-        console.error('Error inserting siswa to Supabase:', err);
-      }
-    }
-  };
+  const nextId = (items: object[], key: string) =>
+    Math.max(...items.map((item) => Number((item as Record<string, unknown>)[key]) || 0), 0) + 1;
 
-  const updateSiswa = async (nis: string, updates: Partial<Siswa>) => {
-    setSiswaList((prev) =>
-      prev.map((item) => (item.nis === nis ? { ...item, ...updates } : item))
-    );
-    if (isSupabaseConfigured) {
-      try {
-        await supabase.from('siswa').update(updates).eq('nis', nis);
-      } catch (err) {
-        console.error('Error updating siswa on Supabase:', err);
-      }
-    }
-  };
-
-  const deleteSiswa = async (nis: string) => {
-    setSiswaList((prev) => prev.filter((item) => item.nis !== nis));
-    setNilaiList((prev) => prev.filter((item) => item.nis !== nis));
-    if (isSupabaseConfigured) {
-      try {
-        await supabase.from('siswa').delete().eq('nis', nis);
-      } catch (err) {
-        console.error('Error deleting siswa on Supabase:', err);
-      }
-    }
-  };
-
-  // === Guru CRUD ===
-  const addGuru = async (newGuru: Omit<Guru, 'id_guru'>) => {
-    const nextId = Math.max(...guruList.map((g) => g.id_guru), 0) + 1;
-    const record: Guru = { ...newGuru, id_guru: nextId };
-    setGuruList((prev) => [...prev, record]);
-    if (isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase.from('guru').insert([record]).select();
-        if (!error && data && data[0]) {
-          setGuruList((prev) => prev.map((g) => (g.id_guru === nextId ? (data[0] as Guru) : g)));
-        }
-      } catch (err) {
-        console.error('Error inserting guru to Supabase:', err);
-      }
-    }
-  };
-
-  const updateGuru = async (id_guru: number, updates: Partial<Guru>) => {
-    setGuruList((prev) =>
-      prev.map((item) => (item.id_guru === id_guru ? { ...item, ...updates } : item))
-    );
-    if (isSupabaseConfigured) {
-      try {
-        await supabase.from('guru').update(updates).eq('id_guru', id_guru);
-      } catch (err) {
-        console.error('Error updating guru on Supabase:', err);
-      }
-    }
-  };
-
-  const deleteGuru = async (id_guru: number) => {
-    setGuruList((prev) => prev.filter((item) => item.id_guru !== id_guru));
-    if (isSupabaseConfigured) {
-      try {
-        await supabase.from('guru').delete().eq('id_guru', id_guru);
-      } catch (err) {
-        console.error('Error deleting guru on Supabase:', err);
-      }
-    }
-  };
-
-  // === Jurusan CRUD ===
-  const addJurusan = async (newJurusan: Omit<Jurusan, 'id_jurusan'>) => {
-    const nextId = Math.max(...jurusanList.map((j) => j.id_jurusan), 0) + 1;
-    const record: Jurusan = { ...newJurusan, id_jurusan: nextId };
-    setJurusanList((prev) => [...prev, record]);
-    if (isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase.from('jurusan').insert([record]).select();
-        if (!error && data && data[0]) {
-          setJurusanList((prev) => prev.map((j) => (j.id_jurusan === nextId ? (data[0] as Jurusan) : j)));
-        }
-      } catch (err) {
-        console.error('Error inserting jurusan to Supabase:', err);
-      }
-    }
-  };
-
-  const updateJurusan = async (id_jurusan: number, updates: Partial<Jurusan>) => {
-    setJurusanList((prev) =>
-      prev.map((item) => (item.id_jurusan === id_jurusan ? { ...item, ...updates } : item))
-    );
-    if (isSupabaseConfigured) {
-      try {
-        await supabase.from('jurusan').update(updates).eq('id_jurusan', id_jurusan);
-      } catch (err) {
-        console.error('Error updating jurusan on Supabase:', err);
-      }
-    }
-  };
-
-  const deleteJurusan = async (id_jurusan: number) => {
-    setJurusanList((prev) => prev.filter((item) => item.id_jurusan !== id_jurusan));
-    if (isSupabaseConfigured) {
-      try {
-        await supabase.from('jurusan').delete().eq('id_jurusan', id_jurusan);
-      } catch (err) {
-        console.error('Error deleting jurusan on Supabase:', err);
-      }
-    }
-  };
-
-  // === Kelas CRUD ===
-  const addKelas = async (newKelas: Omit<Kelas, 'id_kelas'>) => {
-    const nextId = Math.max(...kelasList.map((k) => k.id_kelas), 0) + 1;
-    const record: Kelas = { ...newKelas, id_kelas: nextId };
-    setKelasList((prev) => [...prev, record]);
-    if (isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase.from('kelas').insert([record]).select();
-        if (!error && data && data[0]) {
-          setKelasList((prev) => prev.map((k) => (k.id_kelas === nextId ? (data[0] as Kelas) : k)));
-        }
-      } catch (err) {
-        console.error('Error inserting kelas to Supabase:', err);
-      }
-    }
-  };
-
-  const updateKelas = async (id_kelas: number, updates: Partial<Kelas>) => {
-    setKelasList((prev) =>
-      prev.map((item) => (item.id_kelas === id_kelas ? { ...item, ...updates } : item))
-    );
-    if (isSupabaseConfigured) {
-      try {
-        await supabase.from('kelas').update(updates).eq('id_kelas', id_kelas);
-      } catch (err) {
-        console.error('Error updating kelas on Supabase:', err);
-      }
-    }
-  };
-
-  const deleteKelas = async (id_kelas: number) => {
-    setKelasList((prev) => prev.filter((item) => item.id_kelas !== id_kelas));
-    if (isSupabaseConfigured) {
-      try {
-        await supabase.from('kelas').delete().eq('id_kelas', id_kelas);
-      } catch (err) {
-        console.error('Error deleting kelas on Supabase:', err);
-      }
-    }
-  };
-
-  // === Mata Pelajaran CRUD ===
-  const addMapel = async (newMapel: Omit<MataPelajaran, 'id_mapel'>) => {
-    const nextId = Math.max(...mapelList.map((m) => m.id_mapel), 0) + 1;
-    const record: MataPelajaran = { ...newMapel, id_mapel: nextId };
-    setMapelList((prev) => [...prev, record]);
-    if (isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase.from('mata_pelajaran').insert([record]).select();
-        if (!error && data && data[0]) {
-          setMapelList((prev) => prev.map((m) => (m.id_mapel === nextId ? (data[0] as MataPelajaran) : m)));
-        }
-      } catch (err) {
-        console.error('Error inserting mata pelajaran to Supabase:', err);
-      }
-    }
-  };
-
-  const updateMapel = async (id_mapel: number, updates: Partial<MataPelajaran>) => {
-    setMapelList((prev) =>
-      prev.map((item) => (item.id_mapel === id_mapel ? { ...item, ...updates } : item))
-    );
-    if (isSupabaseConfigured) {
-      try {
-        await supabase.from('mata_pelajaran').update(updates).eq('id_mapel', id_mapel);
-      } catch (err) {
-        console.error('Error updating mata pelajaran on Supabase:', err);
-      }
-    }
-  };
-
-  const deleteMapel = async (id_mapel: number) => {
-    setMapelList((prev) => prev.filter((item) => item.id_mapel !== id_mapel));
-    if (isSupabaseConfigured) {
-      try {
-        await supabase.from('mata_pelajaran').delete().eq('id_mapel', id_mapel);
-      } catch (err) {
-        console.error('Error deleting mata pelajaran on Supabase:', err);
-      }
-    }
-  };
-
-  // === Tahun Ajaran CRUD ===
-  const addTahunAjaran = async (newTahun: Omit<TahunAjaran, 'id_tahun_ajaran'>) => {
-    const nextId = Math.max(...tahunAjaranList.map((t) => t.id_tahun_ajaran), 0) + 1;
-    let list = tahunAjaranList;
-    if (newTahun.status === 'Aktif') {
-      list = list.map((t) => ({ ...t, status: 'Tidak Aktif' as const }));
-    }
-    const record: TahunAjaran = { ...newTahun, id_tahun_ajaran: nextId };
-    setTahunAjaranList([...list, record]);
-    if (isSupabaseConfigured) {
-      try {
-        if (newTahun.status === 'Aktif') {
-          await supabase.from('tahun_ajaran').update({ status: 'Tidak Aktif' }).neq('id_tahun_ajaran', 0);
-        }
-        const { data, error } = await supabase.from('tahun_ajaran').insert([record]).select();
-        if (!error && data && data[0]) {
-          setTahunAjaranList((prev) => prev.map((t) => (t.id_tahun_ajaran === nextId ? (data[0] as TahunAjaran) : t)));
-        }
-      } catch (err) {
-        console.error('Error inserting tahun ajaran to Supabase:', err);
-      }
-    }
-  };
-
-  const updateTahunAjaran = async (id_tahun_ajaran: number, updates: Partial<TahunAjaran>) => {
-    setTahunAjaranList((prev) =>
-      prev.map((item) => {
-        if (item.id_tahun_ajaran === id_tahun_ajaran) {
-          return { ...item, ...updates };
-        }
-        if (updates.status === 'Aktif') {
-          return { ...item, status: 'Tidak Aktif' };
-        }
-        return item;
-      })
-    );
-    if (isSupabaseConfigured) {
-      try {
-        if (updates.status === 'Aktif') {
-          await supabase.from('tahun_ajaran').update({ status: 'Tidak Aktif' }).neq('id_tahun_ajaran', id_tahun_ajaran);
-        }
-        await supabase.from('tahun_ajaran').update(updates).eq('id_tahun_ajaran', id_tahun_ajaran);
-      } catch (err) {
-        console.error('Error updating tahun ajaran on Supabase:', err);
-      }
-    }
-  };
-
-  const deleteTahunAjaran = async (id_tahun_ajaran: number) => {
-    setTahunAjaranList((prev) => prev.filter((item) => item.id_tahun_ajaran !== id_tahun_ajaran));
-    if (isSupabaseConfigured) {
-      try {
-        await supabase.from('tahun_ajaran').delete().eq('id_tahun_ajaran', id_tahun_ajaran);
-      } catch (err) {
-        console.error('Error deleting tahun ajaran on Supabase:', err);
-      }
-    }
-  };
-
-  // === Jadwal CRUD ===
-  const addJadwal = async (newJadwal: Omit<Jadwal, 'id_jadwal'>) => {
-    const nextId = Math.max(...jadwalList.map((j) => j.id_jadwal), 0) + 1;
-    const record: Jadwal = { ...newJadwal, id_jadwal: nextId };
-    setJadwalList((prev) => [...prev, record]);
-    if (isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase.from('jadwal').insert([record]).select();
-        if (!error && data && data[0]) {
-          setJadwalList((prev) => prev.map((j) => (j.id_jadwal === nextId ? (data[0] as Jadwal) : j)));
-        }
-      } catch (err) {
-        console.error('Error inserting jadwal to Supabase:', err);
-      }
-    }
-  };
-
-  const updateJadwal = async (id_jadwal: number, updates: Partial<Jadwal>) => {
-    setJadwalList((prev) =>
-      prev.map((item) => (item.id_jadwal === id_jadwal ? { ...item, ...updates } : item))
-    );
-    if (isSupabaseConfigured) {
-      try {
-        await supabase.from('jadwal').update(updates).eq('id_jadwal', id_jadwal);
-      } catch (err) {
-        console.error('Error updating jadwal on Supabase:', err);
-      }
-    }
-  };
-
-  const deleteJadwal = async (id_jadwal: number) => {
-    setJadwalList((prev) => prev.filter((item) => item.id_jadwal !== id_jadwal));
-    if (isSupabaseConfigured) {
-      try {
-        await supabase.from('jadwal').delete().eq('id_jadwal', id_jadwal);
-      } catch (err) {
-        console.error('Error deleting jadwal on Supabase:', err);
-      }
-    }
-  };
 
   // === Nilai CRUD ===
   const updateNilai = async (
@@ -658,9 +366,9 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setSiswaList((prev) => [...prev, newSiswa]);
     if (isSupabaseConfigured) {
       try {
-        await supabase.from('nilai').delete().eq('id_nilai', id_nilai);
+        await supabase.from('siswa').insert([newSiswa]);
       } catch (err) {
-        console.error('Error deleting nilai on Supabase:', err);
+        console.error('Error inserting siswa to Supabase:', err);
       }
     }
   };
@@ -676,8 +384,6 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setSiswaList((prev) => prev.filter((item) => item.nis !== nis));
     if (isSupabaseConfigured) await supabase.from('siswa').delete().eq('nis', nis);
   };
-
-  const nextId = (items: object[], key: string) => Math.max(...items.map((item) => Number((item as Record<string, unknown>)[key]) || 0), 0) + 1;
 
   const addGuru = async (newGuru: Omit<Guru, 'id_guru'>) => {
     if (guruList.some((guru) => guru.nip === newGuru.nip || (newGuru.email && guru.email === newGuru.email))) throw new Error('NIP atau email guru sudah digunakan.');
@@ -760,6 +466,8 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setMapelList(INITIAL_MATA_PELAJARAN);
     setTahunAjaranList(INITIAL_TAHUN_AJARAN);
     setJadwalList(INITIAL_JADWAL);
+    setPresensiList([]);
+    setRemedialList([]);
   };
 
   const login = (
@@ -878,6 +586,9 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         enrichedSiswa,
         enrichedJadwal,
         enrichedNilai,
+        updateNilai,
+        addNilai,
+        deleteNilai,
         addSiswa,
         updateSiswa,
         deleteSiswa,
@@ -899,7 +610,6 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addTahunAjaran,
         updateTahunAjaran,
         deleteTahunAjaran,
-        deleteNilai,
         addPresensi,
         updatePresensi,
         deletePresensi,
