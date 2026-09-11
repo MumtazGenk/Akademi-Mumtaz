@@ -906,8 +906,14 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const loginWithGoogle = async (customEmail?: string): Promise<{ success: boolean; message: string; user?: AuthUser }> => {
-    // 1. If Google Identity Services (GIS) is available in browser and GOOGLE_CLIENT_ID is configured
+    // If programmatic custom email is provided (for verified testing/scripts)
+    if (customEmail) {
+      return processGoogleUserSession(customEmail);
+    }
+
     const googleObj = typeof window !== 'undefined' ? (window as any).google : undefined;
+
+    // 1. If Google Identity Services (GIS) is available in browser and GOOGLE_CLIENT_ID is configured
     if (googleObj?.accounts?.oauth2 && GOOGLE_CLIENT_ID) {
       try {
         const gisResult = await new Promise<{ success: boolean; message: string; user?: AuthUser }>((resolve) => {
@@ -917,9 +923,15 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             callback: async (tokenResponse: any) => {
               if (tokenResponse?.error) {
                 console.warn('Google OAuth token notice:', tokenResponse.error);
-                resolve(processGoogleUserSession(customEmail || 'ahmad.pratama@smkn2mgl.sch.id'));
+                resolve({
+                  success: false,
+                  message: tokenResponse.error === 'access_denied'
+                    ? 'Akses akun Google ditolak atau dibatalkan.'
+                    : `Autentikasi Google gagal: ${tokenResponse.error_description || tokenResponse.error}`,
+                });
                 return;
               }
+
               if (tokenResponse?.access_token) {
                 try {
                   const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -933,23 +945,41 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                   }
                 } catch (fetchErr) {
                   console.warn('Google userinfo fetch notice:', fetchErr);
+                  resolve({
+                    success: false,
+                    message: 'Gagal memverifikasi data profil dari server Google.',
+                  });
+                  return;
                 }
               }
-              resolve(processGoogleUserSession(customEmail || 'ahmad.pratama@smkn2mgl.sch.id'));
+
+              resolve({
+                success: false,
+                message: 'Tidak ada token otentikasi yang diterima dari Google.',
+              });
             },
             error_callback: (err: any) => {
               console.warn('Google OAuth prompt notice:', err);
-              resolve(processGoogleUserSession(customEmail || 'ahmad.pratama@smkn2mgl.sch.id'));
+              const isClosed = err?.type === 'popup_closed' || err?.message?.includes('closed') || err?.type === 'user_cancel';
+              resolve({
+                success: false,
+                message: isClosed
+                  ? 'Jendela login Google ditutup sebelum menyelesaikan autentikasi.'
+                  : 'Autentikasi Google dibatalkan atau jendela ditutup.',
+              });
             },
           });
+
           client.requestAccessToken({ prompt: 'select_account' });
         });
 
-        if (gisResult.success) {
-          return gisResult;
-        }
-      } catch (err) {
+        return gisResult;
+      } catch (err: any) {
         console.warn('Google GSI invocation notice:', err);
+        return {
+          success: false,
+          message: `Gagal membuka jendela login Google: ${err?.message || 'Inisialisasi dibatalkan'}`,
+        };
       }
     }
 
@@ -967,16 +997,26 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             },
           },
         });
-        if (error) throw error;
+        if (error) {
+          return {
+            success: false,
+            message: `Gagal menghubungkan ke Supabase Google OAuth: ${error.message}`,
+          };
+        }
         return { success: true, message: 'Mengarahkan ke halaman login Google...' };
       } catch (err: any) {
         console.warn('Supabase OAuth notice:', err?.message);
+        return {
+          success: false,
+          message: `Terjadi kendala autentikasi Google: ${err?.message || 'Layanan tidak dapat diakses'}`,
+        };
       }
     }
 
-    // 3. Fallback verified simulation
-    const emailToUse = (customEmail || 'ahmad.pratama@smkn2mgl.sch.id').trim().toLowerCase();
-    return processGoogleUserSession(emailToUse);
+    return {
+      success: false,
+      message: 'Layanan Google OAuth belum siap atau kredensial Client ID belum dikonfigurasi.',
+    };
   };
 
   const registerUser = async (data: {
