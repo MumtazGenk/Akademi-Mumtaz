@@ -3,7 +3,7 @@ import { useDatabase } from '../context/DatabaseContext';
 import { Search, Calendar, Sparkles, LogOut, User } from 'lucide-react';
 
 export const Header: React.FC = () => {
-  const { activeTahunAjaran, searchQuery, setSearchQuery, currentUser, logout, setPageMode } = useDatabase();
+  const { activeTahunAjaran, tahunAjaranList, setActiveTahunAjaran, searchQuery, setSearchQuery, currentUser, logout, setPageMode } = useDatabase();
 
   return (
     <header id="main-header" className="border-b border-zinc-200 bg-white sticky top-0 z-30">
@@ -27,13 +27,21 @@ export const Header: React.FC = () => {
 
           <span className="text-zinc-300">|</span>
 
-          <span className="text-zinc-600 font-medium flex items-center gap-1.5">
+          <label className="text-zinc-600 font-medium flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-zinc-400" />
-            Semester {activeTahunAjaran.semester} {activeTahunAjaran.tahun_ajaran}
-          </span>
-          <span className="px-1.5 py-0.5 text-[11px] font-mono font-medium rounded bg-zinc-100 text-zinc-800 border border-zinc-200">
-            {activeTahunAjaran.status}
-          </span>
+            <select
+              value={activeTahunAjaran.id_tahun_ajaran}
+              onChange={(event) => setActiveTahunAjaran(Number(event.target.value))}
+              className="bg-transparent text-zinc-700 font-medium border-0 focus:outline-hidden cursor-pointer"
+              aria-label="Pilih semester aktif"
+            >
+              {tahunAjaranList.map((tahun) => (
+                <option key={tahun.id_tahun_ajaran} value={tahun.id_tahun_ajaran}>
+                  {tahun.semester} {tahun.tahun_ajaran}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       </div>
 

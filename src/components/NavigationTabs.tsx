@@ -9,6 +9,9 @@ import {
   GraduationCap,
   Layers,
   Database,
+  ClipboardCheck,
+  RefreshCcw,
+  Settings2,
 } from 'lucide-react';
 
 interface TabItem {
@@ -28,6 +31,9 @@ export const NavigationTabs: React.FC = () => {
     { key: 'nilai', label: 'Buku Nilai', icon: Award, badge: nilaiList.length },
     { key: 'guru', label: 'Tenaga Pendidik', icon: GraduationCap, badge: guruList.length },
     { key: 'kurikulum', label: 'Jurusan & Mapel', icon: Layers },
+    { key: 'presensi', label: 'Presensi', icon: ClipboardCheck },
+    { key: 'remedial', label: 'Remedial', icon: RefreshCcw },
+    { key: 'administrasi', label: 'Administrasi', icon: Settings2 },
     { key: 'database', label: 'Struktur DB', icon: Database, badge: 'MariaDB' },
   ];
 

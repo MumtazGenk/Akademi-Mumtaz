@@ -9,6 +9,9 @@ import { NilaiView } from './components/views/NilaiView';
 import { GuruView } from './components/views/GuruView';
 import { KurikulumView } from './components/views/KurikulumView';
 import { DatabaseInspectorView } from './components/views/DatabaseInspectorView';
+import { PresensiView } from './components/views/PresensiView';
+import { RemedialView } from './components/views/RemedialView';
+import { AdministrasiView } from './components/views/AdministrasiView';
 import { LandingPage } from './components/landing/LandingPage';
 import { AnimatePresence, motion } from 'motion/react';
 
@@ -23,6 +26,9 @@ const MainContent: React.FC = () => {
       {activeTab === 'nilai' && <NilaiView />}
       {activeTab === 'guru' && <GuruView />}
       {activeTab === 'kurikulum' && <KurikulumView />}
+      {activeTab === 'presensi' && <PresensiView />}
+      {activeTab === 'remedial' && <RemedialView />}
+      {activeTab === 'administrasi' && <AdministrasiView />}
       {activeTab === 'database' && <DatabaseInspectorView />}
     </main>
   );
