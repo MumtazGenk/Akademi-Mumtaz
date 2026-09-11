@@ -22,9 +22,17 @@ interface TabItem {
 }
 
 export const NavigationTabs: React.FC = () => {
-  const { activeTab, setActiveTab, siswaList, guruList, jadwalList, nilaiList } = useDatabase();
+  const {
+    activeTab,
+    setActiveTab,
+    siswaList,
+    guruList,
+    jadwalList,
+    nilaiList,
+    allowedTabs,
+  } = useDatabase();
 
-  const tabs: TabItem[] = [
+  const allTabs: TabItem[] = [
     { key: 'ringkasan', label: 'Ringkasan', icon: LayoutDashboard },
     { key: 'jadwal', label: 'Jadwal Pelajaran', icon: CalendarDays, badge: jadwalList.length },
     { key: 'siswa', label: 'Data Siswa', icon: Users, badge: siswaList.length },
@@ -37,10 +45,12 @@ export const NavigationTabs: React.FC = () => {
     { key: 'database', label: 'Struktur DB', icon: Database, badge: 'MariaDB' },
   ];
 
+  const visibleTabs = allTabs.filter((tab) => !allowedTabs || allowedTabs.includes(tab.key));
+
   return (
     <div className="border-b border-zinc-200 bg-white">
       <div className="px-4 lg:px-8 flex overflow-x-auto no-scrollbar gap-1 pt-1">
-        {tabs.map((tab) => {
+        {visibleTabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.key;
           return (
