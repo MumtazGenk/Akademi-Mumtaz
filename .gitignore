@@ -9,3 +9,4 @@ coverage/
 !.env.example
 .sql
 package-lock.json
+supabase_schema.sql
