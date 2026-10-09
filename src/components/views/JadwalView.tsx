@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useDatabase } from '../../context/DatabaseContext';
 import { Jadwal, Hari, JadwalEnriched } from '../../types';
 import { ConfirmDeleteModal } from '../modals/ConfirmDeleteModal';
+import { Pagination } from '../common/Pagination';
 import {
   CalendarDays,
   Clock,
@@ -34,9 +35,15 @@ export const JadwalView: React.FC = () => {
   const isAdmin = currentUser?.role === 'admin';
 
   const [selectedHari, setSelectedHari] = useState<string>('Semua');
-  const [selectedKelas, setSelectedKelas] = useState<string>('Semua');
+  const [selectedKelas, setSelectedKelas] = useState<string>(() =>
+    kelasList.length > 0 ? String(kelasList[0].id_kelas) : '1'
+  );
   const [selectedGuru, setSelectedGuru] = useState<string>('Semua');
   const [viewMode, setViewMode] = useState<'matrix' | 'list'>('matrix');
+
+  // Pagination state (for list view)
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(8);
 
   // Modals
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
@@ -71,6 +78,15 @@ export const JadwalView: React.FC = () => {
       return true;
     });
   }, [enrichedJadwal, selectedHari, selectedKelas, selectedGuru, searchQuery]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedHari, selectedKelas, selectedGuru, searchQuery, viewMode]);
+
+  const paginatedJadwal = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredJadwal.slice(start, start + pageSize);
+  }, [filteredJadwal, currentPage, pageSize]);
 
   const handleCreateJadwal = (e: React.FormEvent) => {
     e.preventDefault();
@@ -345,14 +361,14 @@ export const JadwalView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200">
-                {filteredJadwal.length === 0 ? (
+                {paginatedJadwal.length === 0 ? (
                   <tr>
                     <td colSpan={isAdmin ? 7 : 6} className="py-12 text-center text-zinc-400">
                       Tidak ada jadwal yang cocok dengan filter kriteria.
                     </td>
                   </tr>
                 ) : (
-                  filteredJadwal.map((item) => (
+                  paginatedJadwal.map((item) => (
                     <tr key={item.id_jadwal} className="hover:bg-zinc-50 transition-colors">
                       <td className="py-3 px-4 font-mono font-medium text-zinc-900">
                         <div className="font-bold text-zinc-950">{item.hari}</div>
@@ -410,6 +426,17 @@ export const JadwalView: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Controls */}
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredJadwal.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+            pageSizeOptions={[6, 8, 12, 20]}
+            itemName="jadwal"
+          />
         </div>
       )}
 

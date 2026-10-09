@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'motion/react';
 import { useDatabase } from '../../context/DatabaseContext';
 import { Hari } from '../../types';
 import {
@@ -113,7 +114,11 @@ export const OverviewView: React.FC = () => {
 
       {/* Primary Metrics Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="bg-white border border-zinc-200 p-4 rounded-lg">
+        <motion.div
+          whileHover={{ y: -2 }}
+          transition={{ duration: 0.15 }}
+          className="bg-white border border-zinc-200 p-4 rounded-lg shadow-2xs hover:shadow-sm hover:border-zinc-300 transition-colors"
+        >
           <div className="flex items-center justify-between text-zinc-400 mb-2">
             <span className="text-xs font-medium text-zinc-600 uppercase tracking-wider">Siswa</span>
             <Users className="w-4 h-4 text-zinc-700" />
@@ -124,52 +129,72 @@ export const OverviewView: React.FC = () => {
             <span>·</span>
             <span>{perempuanCount}P</span>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="bg-white border border-zinc-200 p-4 rounded-lg">
+        <motion.div
+          whileHover={{ y: -2 }}
+          transition={{ duration: 0.15 }}
+          className="bg-white border border-zinc-200 p-4 rounded-lg shadow-2xs hover:shadow-sm hover:border-zinc-300 transition-colors"
+        >
           <div className="flex items-center justify-between text-zinc-400 mb-2">
             <span className="text-xs font-medium text-zinc-600 uppercase tracking-wider">Guru</span>
             <GraduationCap className="w-4 h-4 text-zinc-700" />
           </div>
           <div className="text-2xl font-bold text-zinc-900 font-mono">{guruList.length}</div>
           <div className="text-[11px] text-zinc-500 mt-1">Tenaga pendidik</div>
-        </div>
+        </motion.div>
 
-        <div className="bg-white border border-zinc-200 p-4 rounded-lg">
+        <motion.div
+          whileHover={{ y: -2 }}
+          transition={{ duration: 0.15 }}
+          className="bg-white border border-zinc-200 p-4 rounded-lg shadow-2xs hover:shadow-sm hover:border-zinc-300 transition-colors"
+        >
           <div className="flex items-center justify-between text-zinc-400 mb-2">
             <span className="text-xs font-medium text-zinc-600 uppercase tracking-wider">Kelas</span>
             <Layers className="w-4 h-4 text-zinc-700" />
           </div>
           <div className="text-2xl font-bold text-zinc-900 font-mono">{kelasList.length}</div>
           <div className="text-[11px] text-zinc-500 mt-1">Tingkat X, XI, XII</div>
-        </div>
+        </motion.div>
 
-        <div className="bg-white border border-zinc-200 p-4 rounded-lg">
+        <motion.div
+          whileHover={{ y: -2 }}
+          transition={{ duration: 0.15 }}
+          className="bg-white border border-zinc-200 p-4 rounded-lg shadow-2xs hover:shadow-sm hover:border-zinc-300 transition-colors"
+        >
           <div className="flex items-center justify-between text-zinc-400 mb-2">
             <span className="text-xs font-medium text-zinc-600 uppercase tracking-wider">Mapel</span>
             <BookOpen className="w-4 h-4 text-zinc-700" />
           </div>
           <div className="text-2xl font-bold text-zinc-900 font-mono">{mapelList.length}</div>
           <div className="text-[11px] text-zinc-500 mt-1">Kejuruan & Umum</div>
-        </div>
+        </motion.div>
 
-        <div className="bg-white border border-zinc-200 p-4 rounded-lg">
+        <motion.div
+          whileHover={{ y: -2 }}
+          transition={{ duration: 0.15 }}
+          className="bg-white border border-zinc-200 p-4 rounded-lg shadow-2xs hover:shadow-sm hover:border-zinc-300 transition-colors"
+        >
           <div className="flex items-center justify-between text-zinc-400 mb-2">
             <span className="text-xs font-medium text-zinc-600 uppercase tracking-wider">Rata Nilai</span>
             <TrendingUp className="w-4 h-4 text-zinc-700" />
           </div>
           <div className="text-2xl font-bold text-zinc-900 font-mono">{avgSchoolGrade}</div>
           <div className="text-[11px] text-zinc-500 mt-1">Skala 100.00</div>
-        </div>
+        </motion.div>
 
-        <div className="bg-white border border-zinc-200 p-4 rounded-lg">
+        <motion.div
+          whileHover={{ y: -2 }}
+          transition={{ duration: 0.15 }}
+          className="bg-white border border-zinc-200 p-4 rounded-lg shadow-2xs hover:shadow-sm hover:border-zinc-300 transition-colors"
+        >
           <div className="flex items-center justify-between text-zinc-400 mb-2">
             <span className="text-xs font-medium text-zinc-600 uppercase tracking-wider">Ketuntasan</span>
             <CheckCircle2 className="w-4 h-4 text-zinc-700" />
           </div>
           <div className="text-2xl font-bold text-zinc-900 font-mono">{passRate}%</div>
           <div className="text-[11px] text-zinc-500 mt-1 font-mono">KKM {KKM.toFixed(1)}</div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Two-column layout: Schedule Preview vs Top Performing Students */}

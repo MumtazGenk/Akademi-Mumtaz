@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'motion/react';
 import { SiswaEnriched, MataPelajaran, Guru } from '../../types';
 import { useDatabase } from '../../context/DatabaseContext';
 import {
@@ -59,8 +60,15 @@ export const StudentRaporModal: React.FC<StudentRaporModalProps> = ({ siswa, onC
   const KKM = 75.0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white border border-zinc-300 rounded-lg shadow-xl w-full max-w-3xl my-8 overflow-hidden text-zinc-900">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-xs overflow-y-auto" onClick={onClose}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 10 }}
+        transition={{ duration: 0.18, ease: 'easeOut' }}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white border border-zinc-300 rounded-lg shadow-xl w-full max-w-3xl my-8 overflow-hidden text-zinc-900"
+      >
         {/* Modal Top Bar */}
         <div className="bg-zinc-900 text-white px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -353,7 +361,7 @@ export const StudentRaporModal: React.FC<StudentRaporModalProps> = ({ siswa, onC
             Tutup Lembar Rapor
           </button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };

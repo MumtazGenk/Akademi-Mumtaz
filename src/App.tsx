@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { DatabaseProvider, useDatabase } from './context/DatabaseContext';
 import { Header } from './components/Header';
-import { NavigationTabs } from './components/NavigationTabs';
+import { Sidebar } from './components/Sidebar';
 import { OverviewView } from './components/views/OverviewView';
 import { JadwalView } from './components/views/JadwalView';
 import { SiswaView } from './components/views/SiswaView';
@@ -35,23 +35,34 @@ const MainContent: React.FC = () => {
   }
 
   return (
-    <main className="max-w-7xl mx-auto px-4 lg:px-8 py-6">
-      {activeTab === 'ringkasan' && <OverviewView />}
-      {activeTab === 'jadwal' && <JadwalView />}
-      {activeTab === 'siswa' && <SiswaView />}
-      {activeTab === 'nilai' && <NilaiView />}
-      {activeTab === 'guru' && <GuruView />}
-      {activeTab === 'kurikulum' && <KurikulumView />}
-      {activeTab === 'presensi' && <PresensiView />}
-      {activeTab === 'remedial' && <RemedialView />}
-      {activeTab === 'administrasi' && <AdministrasiView />}
-      {activeTab === 'database' && <DatabaseInspectorView />}
+    <main className="w-full max-w-7xl mx-auto px-4 lg:px-8 py-6">
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
+        >
+          {activeTab === 'ringkasan' && <OverviewView />}
+          {activeTab === 'jadwal' && <JadwalView />}
+          {activeTab === 'siswa' && <SiswaView />}
+          {activeTab === 'nilai' && <NilaiView />}
+          {activeTab === 'guru' && <GuruView />}
+          {activeTab === 'kurikulum' && <KurikulumView />}
+          {activeTab === 'presensi' && <PresensiView />}
+          {activeTab === 'remedial' && <RemedialView />}
+          {activeTab === 'administrasi' && <AdministrasiView />}
+          {activeTab === 'database' && <DatabaseInspectorView />}
+        </motion.div>
+      </AnimatePresence>
     </main>
   );
 };
 
 const AppContent: React.FC = () => {
   const { pageMode } = useDatabase();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
     <AnimatePresence mode="wait">
@@ -112,40 +123,50 @@ const AppContent: React.FC = () => {
           transition={{ duration: 0.2 }}
           className="min-h-screen bg-zinc-50 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] text-zinc-900 selection:bg-zinc-900 selection:text-white"
         >
-          <Header />
-          <NavigationTabs />
-          <div className="flex-1">
-            <MainContent />
-          </div>
-
-          {/* Institutional Footer */}
-          <footer className="border-t border-zinc-200 bg-white py-6 mt-12 text-xs text-zinc-500">
-            <div className="max-w-7xl mx-auto px-4 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <span className="font-bold text-zinc-900 tracking-tight">SMK NEGERI 2 MAGELANG</span>
-                <span>&middot;</span>
-                <span>SIA Portal Akademik Terpadu</span>
+          <Header
+            onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+            isSidebarOpen={isSidebarOpen}
+          />
+          <div className="flex flex-1 min-h-0">
+            <Sidebar
+              isOpenMobile={isSidebarOpen}
+              onCloseMobile={() => setIsSidebarOpen(false)}
+            />
+            <div className="flex-1 flex flex-col min-w-0">
+              <div className="flex-1">
+                <MainContent />
               </div>
 
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-zinc-600 font-mono text-[11px]">
-                <span>20 Siswa</span>
-                <span>&middot;</span>
-                <span>5 Guru</span>
-                <span>&middot;</span>
-                <span>6 Rombel</span>
-                <span>&middot;</span>
-                <span>10 Mapel</span>
-                <span>&middot;</span>
-                <span>15 Jadwal</span>
-                <span>&middot;</span>
-                <span>30 Nilai</span>
-              </div>
+              {/* Institutional Footer */}
+              <footer className="border-t border-zinc-200 bg-white py-6 mt-12 text-xs text-zinc-500">
+                <div className="max-w-7xl mx-auto px-4 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-zinc-900 tracking-tight">SMK NEGERI 2 MAGELANG</span>
+                    <span>&middot;</span>
+                    <span>SIA Portal Akademik Terpadu</span>
+                  </div>
 
-              <div className="text-zinc-400 text-[11px] font-mono">
-                db_sia_smkn2_magelang &middot; MariaDB 12.3.3
-              </div>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-zinc-600 font-mono text-[11px]">
+                    <span>20 Siswa</span>
+                    <span>&middot;</span>
+                    <span>5 Guru</span>
+                    <span>&middot;</span>
+                    <span>6 Rombel</span>
+                    <span>&middot;</span>
+                    <span>10 Mapel</span>
+                    <span>&middot;</span>
+                    <span>15 Jadwal</span>
+                    <span>&middot;</span>
+                    <span>30 Nilai</span>
+                  </div>
+
+                  <div className="text-zinc-400 text-[11px] font-mono">
+                    db_sia_smkn2_magelang &middot; MariaDB 12.3.3
+                  </div>
+                </div>
+              </footer>
             </div>
-          </footer>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>

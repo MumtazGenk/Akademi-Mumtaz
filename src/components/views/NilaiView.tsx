@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useDatabase } from '../../context/DatabaseContext';
 import { NilaiEnriched, Nilai } from '../../types';
 import { ConfirmDeleteModal } from '../modals/ConfirmDeleteModal';
+import { Pagination } from '../common/Pagination';
 import {
   Award,
   Filter,
@@ -38,10 +39,16 @@ export const NilaiView: React.FC = () => {
 
   const [selectedMapel, setSelectedMapel] = useState<string>('Semua');
   const [selectedGuru, setSelectedGuru] = useState<string>('Semua');
-  const [selectedKelas, setSelectedKelas] = useState<string>('Semua');
+  const [selectedKelas, setSelectedKelas] = useState<string>(() =>
+    kelasList.length > 0 ? String(kelasList[0].id_kelas) : '1'
+  );
   const [selectedStatus, setSelectedStatus] = useState<string>('Semua');
   const [sortField, setSortField] = useState<'nilai_akhir' | 'nilai_tugas' | 'nilai_uts' | 'nilai_uas' | 'nis'>('nilai_akhir');
   const [sortAsc, setSortAsc] = useState<boolean>(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
 
   // Add state
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
@@ -142,6 +149,15 @@ export const NilaiView: React.FC = () => {
     sortField,
     sortAsc,
   ]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedMapel, selectedGuru, selectedKelas, selectedStatus, searchQuery, sortField, sortAsc]);
+
+  const paginatedNilai = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredNilai.slice(start, start + pageSize);
+  }, [filteredNilai, currentPage, pageSize]);
 
   // Calculations for current filtered set
   const stats = useMemo(() => {
@@ -400,14 +416,14 @@ export const NilaiView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200">
-              {filteredNilai.length === 0 ? (
+              {paginatedNilai.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="py-12 text-center text-zinc-400">
                     Tidak ada catatan penilaian yang sesuai dengan kriteria filter.
                   </td>
                 </tr>
               ) : (
-                filteredNilai.map((item) => {
+                paginatedNilai.map((item) => {
                   const isTuntas = item.nilai_akhir >= KKM;
                   const predikat = getPredikat(item.nilai_akhir);
 
@@ -484,6 +500,17 @@ export const NilaiView: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        <Pagination
+          currentPage={currentPage}
+          totalItems={filteredNilai.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          pageSizeOptions={[5, 10, 20]}
+          itemName="catatan nilai"
+        />
       </div>
 
       {/* Add Grade Modal */}

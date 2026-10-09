@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useDatabase } from '../../context/DatabaseContext';
 import { SiswaEnriched, Siswa, JenisKelamin } from '../../types';
 import { StudentRaporModal } from '../modals/StudentRaporModal';
 import { ConfirmDeleteModal } from '../modals/ConfirmDeleteModal';
+import { Pagination } from '../common/Pagination';
 import {
   Users,
   Search,
@@ -36,10 +37,16 @@ export const SiswaView: React.FC = () => {
   const isAdmin = currentUser?.role === 'admin';
 
   const [selectedTingkat, setSelectedTingkat] = useState<string>('Semua');
-  const [selectedKelas, setSelectedKelas] = useState<string>('Semua');
+  const [selectedKelas, setSelectedKelas] = useState<string>(() =>
+    kelasList.length > 0 ? String(kelasList[0].id_kelas) : '1'
+  );
   const [selectedJurusan, setSelectedJurusan] = useState<string>('Semua');
   const [selectedGender, setSelectedGender] = useState<string>('Semua');
   const [selectedStatus, setSelectedStatus] = useState<string>('Semua');
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(5);
 
   const [selectedStudentForRapor, setSelectedStudentForRapor] = useState<SiswaEnriched | null>(null);
   const [showAddStudentModal, setShowAddStudentModal] = useState<boolean>(false);
@@ -120,6 +127,15 @@ export const SiswaView: React.FC = () => {
     selectedStatus,
     searchQuery,
   ]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedTingkat, selectedKelas, selectedJurusan, selectedGender, selectedStatus, searchQuery]);
+
+  const paginatedStudents = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredStudents.slice(start, start + pageSize);
+  }, [filteredStudents, currentPage, pageSize]);
 
   const handleCreateStudent = (e: React.FormEvent) => {
     e.preventDefault();
@@ -270,14 +286,14 @@ export const SiswaView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200">
-              {filteredStudents.length === 0 ? (
+              {paginatedStudents.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="py-12 text-center text-zinc-400">
                     Tidak ditemukan data siswa dengan kriteria pencarian ini.
                   </td>
                 </tr>
               ) : (
-                filteredStudents.map((siswa) => {
+                paginatedStudents.map((siswa) => {
                   const hasGrade = siswa.rataRataNilai !== undefined;
                   const isTuntas = hasGrade && (siswa.rataRataNilai ?? 0) >= 75;
 
@@ -372,6 +388,17 @@ export const SiswaView: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        <Pagination
+          currentPage={currentPage}
+          totalItems={filteredStudents.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          pageSizeOptions={[5, 10, 20]}
+          itemName="siswa"
+        />
       </div>
 
       {/* Rapor Detail Modal */}
