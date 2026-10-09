@@ -37,6 +37,7 @@ export const LandingPage: React.FC = () => {
     guruList,
     kelasList,
     mapelList,
+    jadwalList,
     activeTahunAjaran,
   } = useDatabase();
 
@@ -467,7 +468,7 @@ export const LandingPage: React.FC = () => {
                       </div>
                       <div className="text-[11px] text-zinc-500 font-mono flex items-center gap-1.5">
                         <Clock className="w-3.5 h-3.5 text-zinc-400" />
-                        <span>Total 15 jadwal aktif terverifikasi</span>
+                        <span>Total {jadwalList.length} jadwal aktif terverifikasi</span>
                       </div>
                     </div>
                   )}

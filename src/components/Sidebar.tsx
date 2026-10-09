@@ -21,7 +21,6 @@ interface TabItem {
   key: TabKey;
   label: string;
   icon: React.ElementType;
-  badge?: number | string;
 }
 
 interface TabGroup {
@@ -41,10 +40,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const {
     activeTab,
     setActiveTab,
-    siswaList,
-    guruList,
-    jadwalList,
-    nilaiList,
     allowedTabs,
     activeTahunAjaran,
   } = useDatabase();
@@ -54,10 +49,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'Menu Utama',
       tabs: [
         { key: 'ringkasan', label: 'Ringkasan', icon: LayoutDashboard },
-        { key: 'jadwal', label: 'Jadwal Pelajaran', icon: CalendarDays, badge: jadwalList.length },
-        { key: 'siswa', label: 'Data Siswa', icon: Users, badge: siswaList.length },
-        { key: 'nilai', label: 'Buku Nilai', icon: Award, badge: nilaiList.length },
-        { key: 'guru', label: 'Tenaga Pendidik', icon: GraduationCap, badge: guruList.length },
+        { key: 'jadwal', label: 'Jadwal Pelajaran', icon: CalendarDays },
+        { key: 'siswa', label: 'Data Siswa', icon: Users },
+        { key: 'nilai', label: 'Buku Nilai', icon: Award },
+        { key: 'guru', label: 'Tenaga Pendidik', icon: GraduationCap },
       ],
     },
     {
@@ -72,7 +67,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'Sistem',
       tabs: [
         { key: 'administrasi', label: 'Administrasi', icon: Settings2 },
-        { key: 'database', label: 'Struktur DB', icon: Database, badge: 'MariaDB' },
+        { key: 'database', label: 'Struktur DB', icon: Database },
       ],
     },
   ];
@@ -119,17 +114,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         />
                         <span className="truncate">{tab.label}</span>
                       </div>
-                      {tab.badge !== undefined && (
-                        <span
-                          className={`text-[10px] font-mono px-1.5 py-0.5 rounded shrink-0 ${
-                            isActive
-                              ? 'bg-zinc-800 text-zinc-200 border border-zinc-700'
-                              : 'bg-zinc-100 text-zinc-600 border border-zinc-200'
-                          }`}
-                        >
-                          {tab.badge}
-                        </span>
-                      )}
                     </motion.button>
                   );
                 })}

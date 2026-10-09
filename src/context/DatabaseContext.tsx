@@ -412,47 +412,68 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       setIsLoadingSupabase(true);
       setSupabaseError(null);
+
+      const fetchAllFromTable = async <T,>(
+        table: string,
+        orderBy: string,
+        ascending = true
+      ): Promise<T[]> => {
+        const CHUNK_SIZE = 1000;
+        let allRows: T[] = [];
+        let from = 0;
+
+        while (true) {
+          const { data, error } = await supabase
+            .from(table)
+            .select('*')
+            .range(from, from + CHUNK_SIZE - 1)
+            .order(orderBy, { ascending });
+
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+
+          allRows = allRows.concat(data as T[]);
+          if (data.length < CHUNK_SIZE) break;
+          from += CHUNK_SIZE;
+        }
+
+        return allRows;
+      };
+
       const [
-        resJurusan,
-        resGuru,
-        resMapel,
-        resTahun,
-        resKelas,
-        resSiswa,
-        resJadwal,
-        resNilai,
-        resPresensi,
-        resRemedial,
+        dataJurusan,
+        dataGuru,
+        dataMapel,
+        dataTahun,
+        dataKelas,
+        dataSiswa,
+        dataJadwal,
+        dataNilai,
+        dataPresensi,
+        dataRemedial,
       ] = await Promise.all([
-        supabase.from('jurusan').select('*').order('id_jurusan'),
-        supabase.from('guru').select('*').order('id_guru'),
-        supabase.from('mata_pelajaran').select('*').order('id_mapel'),
-        supabase.from('tahun_ajaran').select('*').order('id_tahun_ajaran'),
-        supabase.from('kelas').select('*').order('id_kelas'),
-        supabase.from('siswa').select('*').order('nis'),
-        supabase.from('jadwal').select('*').order('id_jadwal'),
-        supabase.from('nilai').select('*').order('id_nilai'),
-        supabase.from('presensi').select('*').order('tanggal', { ascending: false }),
-        supabase.from('remedial').select('*').order('tanggal', { ascending: false }),
+        fetchAllFromTable<Jurusan>('jurusan', 'id_jurusan'),
+        fetchAllFromTable<Guru>('guru', 'id_guru'),
+        fetchAllFromTable<MataPelajaran>('mata_pelajaran', 'id_mapel'),
+        fetchAllFromTable<TahunAjaran>('tahun_ajaran', 'id_tahun_ajaran'),
+        fetchAllFromTable<Kelas>('kelas', 'id_kelas'),
+        fetchAllFromTable<Siswa>('siswa', 'nis'),
+        fetchAllFromTable<Jadwal>('jadwal', 'id_jadwal'),
+        fetchAllFromTable<Nilai>('nilai', 'id_nilai'),
+        fetchAllFromTable<Presensi>('presensi', 'tanggal', false),
+        fetchAllFromTable<Remedial>('remedial', 'tanggal', false),
       ]);
 
-      if (resJurusan.error || resGuru.error || resSiswa.error) {
-        const err = resJurusan.error || resGuru.error || resSiswa.error;
-        console.warn('Supabase fetch error:', err);
-        setSupabaseError(err?.message || 'Gagal memuat data dari Supabase');
-        return;
-      }
-
-      if (resJurusan.data && resJurusan.data.length > 0) setJurusanList(resJurusan.data as Jurusan[]);
-      if (resGuru.data && resGuru.data.length > 0) setGuruList(resGuru.data as Guru[]);
-      if (resMapel.data && resMapel.data.length > 0) setMapelList(resMapel.data as MataPelajaran[]);
-      if (resTahun.data && resTahun.data.length > 0) setTahunAjaranList(resTahun.data as TahunAjaran[]);
-      if (resKelas.data && resKelas.data.length > 0) setKelasList(resKelas.data as Kelas[]);
-      if (resSiswa.data && resSiswa.data.length > 0) setSiswaList(resSiswa.data as Siswa[]);
-      if (resJadwal.data && resJadwal.data.length > 0) setJadwalList(resJadwal.data as Jadwal[]);
-      if (resNilai.data && resNilai.data.length > 0) setNilaiList(resNilai.data as Nilai[]);
-      if (resPresensi.data && resPresensi.data.length > 0) setPresensiList(resPresensi.data as Presensi[]);
-      if (resRemedial.data && resRemedial.data.length > 0) setRemedialList(resRemedial.data as Remedial[]);
+      if (dataJurusan.length > 0) setJurusanList(dataJurusan);
+      if (dataGuru.length > 0) setGuruList(dataGuru);
+      if (dataMapel.length > 0) setMapelList(dataMapel);
+      if (dataTahun.length > 0) setTahunAjaranList(dataTahun);
+      if (dataKelas.length > 0) setKelasList(dataKelas);
+      if (dataSiswa.length > 0) setSiswaList(dataSiswa);
+      if (dataJadwal.length > 0) setJadwalList(dataJadwal);
+      if (dataNilai.length > 0) setNilaiList(dataNilai);
+      if (dataPresensi.length > 0) setPresensiList(dataPresensi);
+      if (dataRemedial.length > 0) setRemedialList(dataRemedial);
 
       setIsSupabaseConnected(true);
     } catch (err: any) {

@@ -24,6 +24,7 @@ import {
 
 export const SiswaView: React.FC = () => {
   const {
+    siswaList,
     enrichedSiswa,
     kelasList,
     jurusanList,
@@ -167,7 +168,7 @@ export const SiswaView: React.FC = () => {
               Direktori Peserta Didik & Rapor Akademik
             </h2>
             <p className="text-xs text-zinc-500 mt-0.5">
-              Data 20 siswa SMKN 2 Magelang beserta keterhubungan kelas, nilai evaluasi, dan biodata
+              Data {siswaList.length} siswa SMKN 2 Magelang beserta keterhubungan kelas, nilai evaluasi, dan biodata
             </p>
           </div>
 

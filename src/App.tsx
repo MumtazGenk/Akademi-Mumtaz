@@ -61,7 +61,7 @@ const MainContent: React.FC = () => {
 };
 
 const AppContent: React.FC = () => {
-  const { pageMode } = useDatabase();
+  const { pageMode, siswaList, guruList, kelasList, mapelList, jadwalList, nilaiList } = useDatabase();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
@@ -147,17 +147,17 @@ const AppContent: React.FC = () => {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-zinc-600 font-mono text-[11px]">
-                    <span>20 Siswa</span>
+                    <span>{siswaList.length} Siswa</span>
                     <span>&middot;</span>
-                    <span>5 Guru</span>
+                    <span>{guruList.length} Guru</span>
                     <span>&middot;</span>
-                    <span>6 Rombel</span>
+                    <span>{kelasList.length} Rombel</span>
                     <span>&middot;</span>
-                    <span>10 Mapel</span>
+                    <span>{mapelList.length} Mapel</span>
                     <span>&middot;</span>
-                    <span>15 Jadwal</span>
+                    <span>{jadwalList.length} Jadwal</span>
                     <span>&middot;</span>
-                    <span>30 Nilai</span>
+                    <span>{nilaiList.length} Nilai</span>
                   </div>
 
                   <div className="text-zinc-400 text-[11px] font-mono">
